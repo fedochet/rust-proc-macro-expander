@@ -1,76 +1,105 @@
 #![feature(proc_macro_internals)]
 #![feature(proc_macro_span)]
 #![feature(proc_macro_diagnostic)]
-#![proc_macro]
 extern crate proc_macro;
 extern crate dylib;
-extern crate elf;
 extern crate syn;
 extern crate quote;
-extern crate syntax_pos;
-extern crate syntax;
-extern crate rustc_data_structures;
 extern crate goblin;
 
-use std::env;
+extern crate syntax;
+extern crate syntax_pos;
+extern crate proc_macro2;
+
 use std::path::PathBuf;
 use std::fs;
-use rustc_data_structures::sync::Lrc;
 
 mod rustc_server;
 
 use proc_macro::bridge::server::Diagnostic;
-use proc_macro::bridge::server::Span;
 
-use proc_macro::Delimiter;
 use proc_macro::Spacing;
 use proc_macro::LineColumn;
-
-use syntax::diagnostics::plugin::Level;
 
 // internals
 use proc_macro::TokenStream;
 use dylib::DynamicLibrary;
-
-use elf::File as ElfFile;
-use elf::types::Symbol;
 
 use quote::ToTokens;
 
 use proc_macro::bridge::{server, TokenTree};
 use proc_macro::bridge::client::ProcMacro;
 
-static DERIVE_REGISTRAR_SYMBOL: &str = "__rustc_proc_macro_decls_";
+use goblin::mach::Mach;
 
-fn open_elf_file(path: &PathBuf) -> Option<ElfFile> {
-    elf::File::open_path(path).ok()
+static NEW_REGISTRAR_SYMBOL: &str = "__rustc_proc_macro_decls_";
+static _OLD_REGISTRAR_SYMBOL: &str = "__rustc_derive_registrar_";
+
+fn read_bytes(file: &PathBuf) -> Option<Vec<u8>> {
+    let mut fd = File::open(file).ok()?;
+    let mut buffer = Vec::new();
+    fd.read_to_end(&mut buffer).ok()?;
+
+    Some(buffer)
 }
 
-fn get_registrar_function(file: &ElfFile) -> Option<String> {
-    let text_scn = file.get_section(".symtab")?;
-    let sections = file.get_symbols(text_scn).ok()?;
+fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
+    let buffer = read_bytes(file)?;
+    let object = Object::parse(&buffer).ok()?;
 
-    sections.iter()
-        .find(|s| s.name.contains(DERIVE_REGISTRAR_SYMBOL))
-        .map(|s| s.name.to_string())
+    return match object {
+        Object::Elf(elf) => {
+            let symbols = elf.dynstrtab.to_vec().ok()?;
+            let names = symbols.iter().map(|s| s.to_string()).collect();
 
+            Some(names)
+        },
+
+        Object::PE(pe) => {
+            // TODO: handle windows dlls
+            None
+        },
+
+        Object::Mach(mach) => {
+            match mach {
+                Mach::Binary(binary) => {
+                    let exports = binary.exports().ok()?;
+                    let names = exports.iter().map(|s| s.name.clone()).collect();
+
+                    Some(names)
+                }
+
+                Mach::Fat(fat) => None
+            }
+        },
+
+        Object::Archive(_) | Object::Unknown(_) => None,
+    }
 }
 
-fn find_registrar_function(file: &PathBuf) -> Option<String> {
-    let elf_file = open_elf_file(file)?;
-    let function = get_registrar_function(&elf_file);
-    function
+fn is_derive_registrar_symbol(symbol: &str) -> bool {
+    symbol.contains(NEW_REGISTRAR_SYMBOL)
 }
 
-unsafe fn get_plugin_registrar_fun(file: &PathBuf) -> Option<&&[ProcMacro]> {
-    let symbol_name = find_registrar_function(file)?;
+fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
+    let symbols = get_symbols_from_lib(file)?;
+
+    symbols.iter()
+        .find(|s| is_derive_registrar_symbol(s))
+        .map(|s| s.clone())
+}
+
+fn get_proc_macros(file: &PathBuf) -> Option<&&[ProcMacro]> {
+    let symbol_name = find_registrar_symbol(file)?;
     let lib = DynamicLibrary::open(Some(file)).ok()?;
 
-    let symbol = lib.symbol(&symbol_name).ok()?;
-    let registrar = std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol);
-    std::mem::forget(lib);
+    unsafe {
+        let symbol = lib.symbol(&symbol_name).ok()?;
+        let registrar = std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol);
+        std::mem::forget(lib); // let library live for the rest of the execution
 
-    Some(registrar)
+        Some(registrar)
+    }
 }
 
 fn list_files(path: &str) -> Vec<PathBuf> {
@@ -95,54 +124,13 @@ fn main() {
 
     let paths = list_files("./another_so_files");
 
-    let mut input_code = String::new();
-
-//    io::stdin().read_line(&mut input_code);
-
     for path in &paths {
+        println!("{:?}", path.file_name());
 
-        let mut fd = File::open(path).unwrap();
-        let mut buffer = Vec::new();
-        fd.read_to_end(&mut buffer).unwrap();
-
-        match Object::parse(&buffer).unwrap() {
-//            Object::Elf(elf) => {
-//                let tab = elf.dynstrtab.to_vec();
-//                for sym in tab.iter() {
-//                    println!("{:?}", sym);
-//                }
-//            },
-//            Object::Mach(mach) => {
-//                println!("{:?}", mach);
-//            },
-//            Object::PE(pe) => {
-//                println!("pe: {:#?}", &pe);
-//            },
-//            _ => {}
-            Object::Elf(elf) => {
-                println!("elf:");
-            },
-            Object::PE(pe) => {
-                println!("pe");
-            },
-            Object::Mach(mach) => {
-                match mach {
-
-                    goblin::mach::Mach::Fat(fat) => { println!("Fat mach") }
-
-                    goblin::mach::Mach::Binary(binary) => {
-                        for e in mach.exports().unwrap() {
-                            if e.name.contains("rustc") {
-                                println!("{}", e.name)
-                            }
-                        }
-                    }
-                }
-            },
-            Object::Archive(archive) => {
-                println!("archive");
-            },
-            Object::Unknown(magic) => { println!("unknown magic: {:#x}", magic) }
+        if let Some(function) = get_proc_macros(path) {
+            println!("Can parse this")
+        } else {
+            println!("Nope")
         }
     }
 

@@ -5,13 +5,11 @@ authors = ["roma"]
 
 [dependencies]
 dylib = "0.0.3"
-elf = "0.0.10"
 serde_derive = "1.0.0"
 getset = "0.0.6"
 quote = "0.6.5"
 rustc-ap-syntax_pos = "235.0.0"
 rustc-ap-syntax = "235.0.0"
-rustc-ap-rustc_data_structures = "235.0.0"
 proc-macro2 = "0.4.13"
 goblin = "0.0.17"
 

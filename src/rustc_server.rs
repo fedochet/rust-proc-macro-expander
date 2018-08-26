@@ -1,13 +1,10 @@
 use proc_macro::bridge::{server, TokenTree};
-
-extern crate proc_macro2;
-
 use syntax::ast;
 
 use syntax_pos::symbol::{Symbol, keywords};
 use syntax_pos::{Span, DUMMY_SP};
 
-use self::proc_macro2::{TokenStream};
+use proc_macro2::{TokenStream};
 use syntax::tokenstream::{TokenStreamBuilder, Cursor};
 use proc_macro::{Delimiter, Spacing, Level, LineColumn};
 
@@ -71,7 +68,7 @@ impl server::Types for Rustc {
 impl server::TokenStream for Rustc {
     fn new(&mut self) -> Self::TokenStream {
 //        println!("New TokenStream");
-        proc_macro2::TokenStream::new()
+        TokenStream::new()
     }
     fn is_empty(&mut self, stream: &Self::TokenStream) -> bool {
 //        println!("IsEmpty");
