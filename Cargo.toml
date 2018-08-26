@@ -1,5 +1,5 @@
 [package]
-name = "proc_macro_server"
+name = "proc_macro_expander"
 version = "0.1.0"
 authors = ["roma"]
 
