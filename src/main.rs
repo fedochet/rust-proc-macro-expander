@@ -6,6 +6,7 @@ extern crate dylib;
 extern crate syn;
 extern crate quote;
 extern crate goblin;
+extern crate clap;
 
 extern crate syntax;
 extern crate syntax_pos;
@@ -27,10 +28,17 @@ use dylib::DynamicLibrary;
 
 use quote::ToTokens;
 
-use proc_macro::bridge::{server, TokenTree};
 use proc_macro::bridge::client::ProcMacro;
 
+use std::io;
+use std::fs::File;
+use std::io::Read;
+
+use goblin::{error, Object};
+use goblin::elf::sym::{Symtab, Sym};
 use goblin::mach::Mach;
+
+use clap::{Arg, App, Values};
 
 static NEW_REGISTRAR_SYMBOL: &str = "__rustc_proc_macro_decls_";
 static _OLD_REGISTRAR_SYMBOL: &str = "__rustc_derive_registrar_";
@@ -113,54 +121,74 @@ fn list_files(path: &str) -> Vec<PathBuf> {
     vec![]
 }
 
-use std::io;
-use std::fs::File;
-use std::io::Read;
-use goblin::{error, Object};
-use goblin::elf::sym::{Symtab, Sym};
+struct ExpansionArgs {
+    libs: Vec<PathBuf>,
+    derives: Option<Vec<String>>,
+}
+
+fn parse_args() -> ExpansionArgs {
+    let matches = App::new("proc_macro_expander")
+        .version("1.0")
+        .about("Expands procedural macros")
+        .arg(Arg::with_name("libs")
+            .short("l")
+            .long("libs")
+            .value_name("LIBFILE")
+            .multiple(true)
+            .required(true)
+            .help("Compiled proc macro libraries")
+            .takes_value(true))
+        .arg(Arg::with_name("derives")
+            .short("d")
+            .long("derives")
+            .value_name("TRAIT")
+            .multiple(true)
+            .takes_value(true)
+            .help("Traits for which expansions should be performed"))
+        .get_matches();
+
+    let libs = matches.values_of("libs").expect("Cannot expand without specified --libs!");
+    let libs = libs.map(|lib| PathBuf::from(lib)).collect();
+
+    let derives = match matches.values_of("derives") {
+        Some(derives) => Some(derives.map(|derive| derive.to_string()).collect()),
+        None => None
+    };
+
+    ExpansionArgs { libs, derives }
+}
 
 fn main() {
+
     let fixed = env!("CARGO_PKG_NAME").replace("-", "_");
 
     let paths = list_files("./another_so_files");
 
-    for path in &paths {
-        println!("{:?}", path.file_name());
+    let args = parse_args();
 
-        if let Some(function) = get_proc_macros(path) {
-            println!("Can parse this")
-        } else {
-            println!("Nope")
-        }
-    }
+    println!("{:?}\n{:?}", args.libs, args.derives);
 
-//        if let Some(file_name) = path.to_str() {
-//            if file_name.contains(&fixed) {
-//                continue
-//            }
-//        }
+//    for path in &paths {
+//        println!("{:?}", path.file_name());
 //
-//        unsafe {
-//            if let Some(proc_macros) = get_plugin_registrar_fun(path) {
-////                let mut registry = MyRegistrar {};
-//                for a in proc_macros.iter() {
-//                    match a {
-//                        ProcMacro::CustomDerive { trait_name, attributes, client } => {
+//        if let Some(macros) = get_proc_macros(path) {
+//            for m in macros.iter() {
+//                match m {
+//                    ProcMacro::CustomDerive { trait_name, client, .. } => {
+//                        let s = syn::parse_file("struct Point { x: i32, y: i32 }").unwrap();
 //
-//                            let s = syn::parse_file(&input_code).unwrap();
+//                        println!("// Calling {} expander!", trait_name);
 //
-//                            println!("// Calling {} expander!", trait_name);
+//                        let t = s.into_token_stream();
 //
-//                            let t = s.into_token_stream();
+//                        let res = client.run(rustc_server::Rustc {}, t);
 //
-//                            let res = client.run(rustc_server::Rustc {}, t);
-//
-//                            if let Ok(res) = res {
-//                                println!("{}", res);
-//                            }
+//                        if let Ok(res) = res {
+//                            println!("{}", res);
 //                        }
-//                        _ => {}
 //                    }
+//
+//                    _ => {}
 //                }
 //            }
 //        }

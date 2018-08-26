@@ -12,6 +12,7 @@ rustc-ap-syntax_pos = "235.0.0"
 rustc-ap-syntax = "235.0.0"
 proc-macro2 = "0.4.13"
 goblin = "0.0.17"
+clap = "2.32.0"
 
 [dependencies.syn]
 version = "0.14.7"
