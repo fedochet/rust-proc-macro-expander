@@ -88,7 +88,7 @@ fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
         .map(|s| s.clone())
 }
 
-fn get_proc_macros(file: &PathBuf) -> Option<&&[ProcMacro]> {
+fn get_proc_macros(file: &PathBuf) -> Option<&'static &'static [ProcMacro]> {
     let symbol_name = find_registrar_symbol(file)?;
     let lib = DynamicLibrary::open(Some(file)).ok()?;
 
