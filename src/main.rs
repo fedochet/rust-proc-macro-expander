@@ -52,12 +52,12 @@ fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
             let names = symbols.iter().map(|s| s.to_string()).collect();
 
             Some(names)
-        },
+        }
 
         Object::PE(_) => {
             // TODO: handle windows dlls
             None
-        },
+        }
 
         Object::Mach(mach) => {
             match mach {
@@ -70,10 +70,10 @@ fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
 
                 Mach::Fat(_) => None
             }
-        },
+        }
 
         Object::Archive(_) | Object::Unknown(_) => None,
-    }
+    };
 }
 
 fn is_derive_registrar_symbol(symbol: &str) -> bool {
@@ -102,6 +102,12 @@ fn get_proc_macros(file: &PathBuf) -> Option<&&[ProcMacro]> {
     Some(registrar)
 }
 
+fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
+    let parsed_file = syn::parse_file(code).ok()?;
+
+    Some(parsed_file.into_token_stream())
+}
+
 struct ExpansionArgs {
     libs: Vec<PathBuf>,
     derives: Option<Vec<String>>,
@@ -128,11 +134,12 @@ impl Expander {
         for derive in &self.derives {
             if let ProcMacro::CustomDerive { trait_name, client, .. } = derive {
                 if *trait_name == trait_to_expand {
-                    let s = syn::parse_file(code).unwrap();
-                    let t = s.into_token_stream();
-                    let res = client.run(rustc_server::Rustc {}, t);
+                    let token_stream = parse_string(code).expect(
+                        &format!("Error while parsing this code: '{}'", code)
+                    );
+                    let res = client.run(rustc_server::Rustc {}, token_stream);
 
-                    return res.ok().map(|token_stream| token_stream.to_string())
+                    return res.ok().map(|token_stream| token_stream.to_string());
                 }
             }
         }
@@ -142,11 +149,14 @@ impl Expander {
 
     fn expand_for_all_derives(&self, code: &str) -> Vec<String> {
         let mut result = vec![];
+
         for d in &self.derives {
             if let ProcMacro::CustomDerive { client, .. } = d {
-                let s = syn::parse_file(code).unwrap();
-                let t = s.into_token_stream();
-                let res = client.run(rustc_server::Rustc {}, t);
+                let tokenStream = parse_string(code).expect(
+                    &format!("Error while parsing this code: '{}'", code)
+                );
+
+                let res = client.run(rustc_server::Rustc {}, tokenStream);
 
                 if let Ok(res) = res {
                     result.push(res.to_string())
@@ -156,6 +166,7 @@ impl Expander {
 
         result
     }
+
 }
 
 fn parse_args() -> ExpansionArgs {
@@ -190,24 +201,29 @@ fn parse_args() -> ExpansionArgs {
     ExpansionArgs { libs, derives }
 }
 
-fn main() {
-    let args = parse_args();
-
+fn read_stdin() -> String {
     let mut buff = String::new();
-
     std::io::stdin().read_to_string(&mut buff).expect("Cannot read from stdin!");
 
+    buff
+}
+
+fn main() {
+    let args = parse_args();
+    let code_to_expand = read_stdin();
+
     let expander = Expander::new(&args.libs);
+
     if let Some(derives) = args.derives {
         for derive in derives {
-            let expansion = expander.expand(&buff, &derive).expect(
+            let expansion = expander.expand(&code_to_expand, &derive).expect(
                 &format!("Cannot perform expansion for {}!", derive)
             );
 
             println!("{}", expansion);
         }
     } else {
-        for expansion in expander.expand_for_all_derives(&buff) {
+        for expansion in expander.expand_for_all_derives(&code_to_expand) {
             println!("{}", expansion)
         }
     }
