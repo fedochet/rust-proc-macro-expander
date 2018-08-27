@@ -17,28 +17,19 @@ use std::fs;
 
 mod rustc_server;
 
-use proc_macro::bridge::server::Diagnostic;
-
-use proc_macro::Spacing;
-use proc_macro::LineColumn;
-
-// internals
-use proc_macro::TokenStream;
 use dylib::DynamicLibrary;
 
 use quote::ToTokens;
 
 use proc_macro::bridge::client::ProcMacro;
 
-use std::io;
 use std::fs::File;
 use std::io::Read;
 
-use goblin::{error, Object};
-use goblin::elf::sym::{Symtab, Sym};
+use goblin::Object;
 use goblin::mach::Mach;
 
-use clap::{Arg, App, Values};
+use clap::{Arg, App};
 
 static NEW_REGISTRAR_SYMBOL: &str = "__rustc_proc_macro_decls_";
 static _OLD_REGISTRAR_SYMBOL: &str = "__rustc_derive_registrar_";
@@ -63,7 +54,7 @@ fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
             Some(names)
         },
 
-        Object::PE(pe) => {
+        Object::PE(_) => {
             // TODO: handle windows dlls
             None
         },
@@ -77,7 +68,7 @@ fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
                     Some(names)
                 }
 
-                Mach::Fat(fat) => None
+                Mach::Fat(_) => None
             }
         },
 
@@ -101,29 +92,70 @@ fn get_proc_macros(file: &PathBuf) -> Option<&&[ProcMacro]> {
     let symbol_name = find_registrar_symbol(file)?;
     let lib = DynamicLibrary::open(Some(file)).ok()?;
 
-    unsafe {
+    let registrar = unsafe {
         let symbol = lib.symbol(&symbol_name).ok()?;
-        let registrar = std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol);
-        std::mem::forget(lib); // let library live for the rest of the execution
+        std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol)
+    };
 
-        Some(registrar)
-    }
-}
+    std::mem::forget(lib); // let library live for the rest of the execution
 
-fn list_files(path: &str) -> Vec<PathBuf> {
-    if let Ok(paths) = fs::read_dir(path) {
-        return paths.into_iter()
-            .filter_map(|res| res.ok())
-            .map(|file| file.path())
-            .collect();
-    }
-
-    vec![]
+    Some(registrar)
 }
 
 struct ExpansionArgs {
     libs: Vec<PathBuf>,
     derives: Option<Vec<String>>,
+}
+
+struct Expander {
+    derives: Vec<ProcMacro>
+}
+
+impl Expander {
+    fn new(libs: &Vec<PathBuf>) -> Expander {
+        let mut derives: Vec<ProcMacro> = vec![];
+
+        for lib in libs {
+            if let Some(macros) = get_proc_macros(lib) {
+                derives.extend(macros.iter())
+            }
+        }
+
+        Expander { derives }
+    }
+
+    fn expand(&self, code: &str, trait_to_expand: &str) -> Option<String> {
+        for derive in &self.derives {
+            if let ProcMacro::CustomDerive { trait_name, client, .. } = derive {
+                if *trait_name == trait_to_expand {
+                    let s = syn::parse_file(code).unwrap();
+                    let t = s.into_token_stream();
+                    let res = client.run(rustc_server::Rustc {}, t);
+
+                    return res.ok().map(|token_stream| token_stream.to_string())
+                }
+            }
+        }
+
+        None
+    }
+
+    fn expand_for_all_derives(&self, code: &str) -> Vec<String> {
+        let mut result = vec![];
+        for d in &self.derives {
+            if let ProcMacro::CustomDerive { client, .. } = d {
+                let s = syn::parse_file(code).unwrap();
+                let t = s.into_token_stream();
+                let res = client.run(rustc_server::Rustc {}, t);
+
+                if let Ok(res) = res {
+                    result.push(res.to_string())
+                }
+            }
+        }
+
+        result
+    }
 }
 
 fn parse_args() -> ExpansionArgs {
@@ -159,38 +191,24 @@ fn parse_args() -> ExpansionArgs {
 }
 
 fn main() {
-
-    let fixed = env!("CARGO_PKG_NAME").replace("-", "_");
-
-    let paths = list_files("./another_so_files");
-
     let args = parse_args();
 
-    println!("{:?}\n{:?}", args.libs, args.derives);
+    let mut buff = String::new();
 
-//    for path in &paths {
-//        println!("{:?}", path.file_name());
-//
-//        if let Some(macros) = get_proc_macros(path) {
-//            for m in macros.iter() {
-//                match m {
-//                    ProcMacro::CustomDerive { trait_name, client, .. } => {
-//                        let s = syn::parse_file("struct Point { x: i32, y: i32 }").unwrap();
-//
-//                        println!("// Calling {} expander!", trait_name);
-//
-//                        let t = s.into_token_stream();
-//
-//                        let res = client.run(rustc_server::Rustc {}, t);
-//
-//                        if let Ok(res) = res {
-//                            println!("{}", res);
-//                        }
-//                    }
-//
-//                    _ => {}
-//                }
-//            }
-//        }
-//    }
+    std::io::stdin().read_to_string(&mut buff).expect("Cannot read from stdin!");
+
+    let expander = Expander::new(&args.libs);
+    if let Some(derives) = args.derives {
+        for derive in derives {
+            let expansion = expander.expand(&buff, &derive).expect(
+                &format!("Cannot perform expansion for {}!", derive)
+            );
+
+            println!("{}", expansion);
+        }
+    } else {
+        for expansion in expander.expand_for_all_derives(&buff) {
+            println!("{}", expansion)
+        }
+    }
 }
