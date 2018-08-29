@@ -87,11 +87,11 @@ impl server::TokenStream for Rustc {
         tree: TokenTree<Self::Group, Self::Punct, Self::Ident, Self::Literal>,
     ) -> Self::TokenStream {
 //        println!("From token tree");
-        unimplemented!();
+        unimplemented!("from_token_tree");
     }
     fn into_iter(&mut self, stream: Self::TokenStream) -> Self::TokenStreamIter {
 //        println!("Into iter");
-        unimplemented!();
+        unimplemented!("from_token_tree");
     }
 }
 
@@ -100,10 +100,10 @@ impl server::TokenStreamBuilder for Rustc {
         TokenStreamBuilder::new()
     }
     fn push(&mut self, builder: &mut Self::TokenStreamBuilder, stream: Self::TokenStream) {
-        unimplemented!()
+        unimplemented!("push")
     }
     fn build(&mut self, builder: Self::TokenStreamBuilder) -> Self::TokenStream {
-        unimplemented!();
+        unimplemented!("build");
     }
 }
 
@@ -112,7 +112,7 @@ impl server::TokenStreamIter for Rustc {
         &mut self,
         iter: &mut Self::TokenStreamIter,
     ) -> Option<TokenTree<Self::Group, Self::Punct, Self::Ident, Self::Literal>> {
-        unimplemented!()
+        unimplemented!("next")
     }
 }
 
@@ -190,34 +190,34 @@ impl server::Literal for Rustc {
         format!("{:?}", literal)
     }
     fn integer(&mut self, n: &str) -> Self::Literal {
-        unimplemented!()
+        unimplemented!("integer")
     }
     fn typed_integer(&mut self, n: &str, kind: &str) -> Self::Literal {
-        unimplemented!()
+        unimplemented!("typed_integer")
     }
     fn float(&mut self, n: &str) -> Self::Literal {
-        unimplemented!()
+        unimplemented!("flat")
     }
     fn f32(&mut self, n: &str) -> Self::Literal {
-        unimplemented!()
+        unimplemented!("f32")
     }
     fn f64(&mut self, n: &str) -> Self::Literal {
-        unimplemented!()
+        unimplemented!("f64")
     }
     fn string(&mut self, string: &str) -> Self::Literal {
         let mut escaped = String::new();
         for ch in string.chars() {
             escaped.extend(ch.escape_debug());
         }
-        unimplemented!()
+        unimplemented!("string")
     }
     fn character(&mut self, ch: char) -> Self::Literal {
         let mut escaped = String::new();
         escaped.extend(ch.escape_unicode());
-        unimplemented!()
+        unimplemented!("character")
     }
     fn byte_string(&mut self, bytes: &[u8]) -> Self::Literal {
-        unimplemented!()
+        unimplemented!("byte_string")
     }
     fn span(&mut self, literal: &Self::Literal) -> Self::Span {
         literal.span
@@ -229,30 +229,31 @@ impl server::Literal for Rustc {
 
 impl server::SourceFile for Rustc {
     fn eq(&mut self, file1: &Self::SourceFile, file2: &Self::SourceFile) -> bool {
-        unimplemented!()
+        unimplemented!("eq")
     }
     fn path(&mut self, file: &Self::SourceFile) -> String {
-        unimplemented!()    }
+        unimplemented!("path")
+    }
     fn is_real(&mut self, file: &Self::SourceFile) -> bool {
-        unimplemented!()
+        unimplemented!("is_real")
     }
 }
 
 impl server::Diagnostic for Rustc {
     fn new(&mut self, level: Level, msg: &str) -> Self::Diagnostic {
-        unimplemented!()
+        unimplemented!("Diagnostics::new")
     }
     fn new_span(&mut self, level: Level, msg: &str, span: Self::Span) -> Self::Diagnostic {
-        unimplemented!()
+        unimplemented!("new_span")
     }
     fn sub(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str) {
-        unimplemented!()
+        unimplemented!("sub")
     }
     fn sub_span(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, span: Self::Span) {
-        unimplemented!()
+        unimplemented!("sub_span")
     }
     fn emit(&mut self, diag: Self::Diagnostic) {
-        unimplemented!()
+        unimplemented!("emit")
     }
 }
 
@@ -261,28 +262,28 @@ impl server::Span for Rustc {
         format!("{:?} bytes({}..{})", span.ctxt(), span.lo().0, span.hi().0)
     }
     fn def_site(&mut self) -> Self::Span {
-        unimplemented!()
+        unimplemented!("def_site")
     }
     fn call_site(&mut self) -> Self::Span {
-        unimplemented!()
+        unimplemented!("call_site")
     }
     fn source_file(&mut self, span: Self::Span) -> Self::SourceFile {
-        unimplemented!()
+        unimplemented!("source_file")
     }
     fn parent(&mut self, span: Self::Span) -> Option<Self::Span> {
-        unimplemented!()
+        unimplemented!("parent")
     }
     fn source(&mut self, span: Self::Span) -> Self::Span {
-        unimplemented!()
+        unimplemented!("source")
     }
     fn start(&mut self, span: Self::Span) -> LineColumn {
-        unimplemented!()
+        unimplemented!("start")
     }
     fn end(&mut self, span: Self::Span) -> LineColumn {
-        unimplemented!()
+        unimplemented!("end")
     }
     fn join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
-        unimplemented!()
+        unimplemented!("join")
     }
     fn resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
         span.with_ctxt(at.ctxt())

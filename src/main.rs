@@ -88,18 +88,21 @@ fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
         .map(|s| s.clone())
 }
 
-fn get_proc_macros(file: &PathBuf) -> Option<&'static &'static [ProcMacro]> {
-    let symbol_name = find_registrar_symbol(file)?;
-    let lib = DynamicLibrary::open(Some(file)).ok()?;
+fn get_proc_macros(file: &PathBuf) -> Result<&'static &'static [ProcMacro], String> {
+    let symbol_name = find_registrar_symbol(file).ok_or(
+        format!("Cannot find registrar symbol in file {:?}", file)
+    )?;
+
+    let lib = DynamicLibrary::open(Some(file))?;
 
     let registrar = unsafe {
-        let symbol = lib.symbol(&symbol_name).ok()?;
+        let symbol = lib.symbol(&symbol_name)?;
         std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol)
     };
 
     std::mem::forget(lib); // let library live for the rest of the execution
 
-    Some(registrar)
+    Ok(registrar)
 }
 
 fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
@@ -118,16 +121,15 @@ struct Expander {
 }
 
 impl Expander {
-    fn new(libs: &Vec<PathBuf>) -> Expander {
+    fn new(libs: &Vec<PathBuf>) -> Result<Expander, String> {
         let mut derives: Vec<ProcMacro> = vec![];
 
         for lib in libs {
-            if let Some(macros) = get_proc_macros(lib) {
-                derives.extend(macros.iter())
-            }
+            let macros = get_proc_macros(lib)?;
+            derives.extend(macros.iter());
         }
 
-        Expander { derives }
+        Ok(Expander { derives })
     }
 
     fn expand(&self, code: &str, trait_to_expand: &str) -> Option<String> {
@@ -210,9 +212,11 @@ fn read_stdin() -> String {
 
 fn main() {
     let args = parse_args();
-    let code_to_expand = read_stdin();
+    let expander = Expander::new(&args.libs).expect(
+        &format!("Cannot perform expansion wit those libs: {:?}", &args.libs)
+    );
 
-    let expander = Expander::new(&args.libs);
+    let code_to_expand = read_stdin();
 
     if let Some(derives) = args.derives {
         for derive in derives {
