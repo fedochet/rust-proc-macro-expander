@@ -6,9 +6,9 @@ authors = ["roma"]
 [dependencies]
 dylib = "0.0.3"
 quote = "0.6.5"
-rustc-ap-syntax_pos = "235.0.0"
-rustc-ap-syntax = "235.0.0"
-proc-macro2 = "0.4.13"
+rustc-ap-syntax_pos = "239.0.0"
+rustc-ap-syntax = "239.0.0"
+proc-macro2 = "=0.4.19" # latest version that can be compiled with that pr
 goblin = "0.0.17"
 clap = "2.32.0"
 

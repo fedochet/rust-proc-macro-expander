@@ -139,7 +139,7 @@ impl Expander {
                     let token_stream = parse_string(code).expect(
                         &format!("Error while parsing this code: '{}'", code)
                     );
-                    let res = client.run(rustc_server::Rustc {}, token_stream);
+                    let res = client.run(rustc_server::Rustc::default(), token_stream);
 
                     return res.ok().map(|token_stream| token_stream.to_string());
                 }
@@ -158,7 +158,7 @@ impl Expander {
                     &format!("Error while parsing this code: '{}'", code)
                 );
 
-                let res = client.run(rustc_server::Rustc {}, tokenStream);
+                let res = client.run(rustc_server::Rustc::default(), tokenStream);
 
                 if let Ok(res) = res {
                     result.push(res.to_string())

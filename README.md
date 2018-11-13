@@ -8,4 +8,4 @@ locally, and use it to compile this project.
 
 ## Usage
 
-TODO
+**IMPORTANT**: should be built with `RUSTFLAGS='--cfg procmacro2_semver_exempt'` as stated [here](https://github.com/alexcrichton/proc-macro2#unstable-features).
