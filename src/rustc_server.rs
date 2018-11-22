@@ -52,6 +52,8 @@ pub struct TokenStreamIter {
 //pub struct Group;
 type Group = proc_macro2::Group;
 
+type MultiSpan = syntax_pos::MultiSpan;
+
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct MyPunct(u32);
 
@@ -237,6 +239,7 @@ impl server::Types for Rustc {
     type SourceFile = SourceFile;
     type Diagnostic = proc_macro::Diagnostic;
     type Span = MySpan;
+    type MultiSpan = MultiSpan;
 }
 
 fn get_client() -> Client {
@@ -385,6 +388,14 @@ impl server::Group for Rustc {
         let MySpanData(span) = *self.span_interner.get(span.0);
         group.set_span(span);
     }
+
+    fn span_open(&mut self, group: &Self::Group) -> Self::Span {
+        unimplemented!()
+    }
+
+    fn span_close(&mut self, group: &Self::Group) -> Self::Span {
+        unimplemented!()
+    }
 }
 
 impl server::Punct for Rustc {
@@ -480,7 +491,7 @@ impl server::SourceFile for Rustc {
 //                .to_string(),
         /*_ =>*/
 //        }
-        String::from(file.path().to_string())
+        String::from(file.path().to_str().expect("non-UTF8 file path in `proc_macro::SourceFile::path`"))
     }
     fn is_real(&mut self, file: &Self::SourceFile) -> bool {
         file.is_real()
@@ -488,23 +499,23 @@ impl server::SourceFile for Rustc {
 }
 
 impl server::Diagnostic for Rustc {
-    fn new(&mut self, level: Level, msg: &str) -> Self::Diagnostic {
+    fn new(&mut self, level: Level, msg: &str, _: Self::MultiSpan) -> Self::Diagnostic {
         unimplemented!("new")
     }
-    fn new_span(&mut self, level: Level, msg: &str, span: Self::Span) -> Self::Diagnostic {
-//        let MySpanData(span) = *self.span_interner.get(span.0);
-//
-//        Self::Diagnostic::spanned(span, level, msg)
-        unimplemented!("new_span")
-    }
+//    fn new_span(&mut self, level: Level, msg: &str, span: Self::Span) -> Self::Diagnostic {
+////        let MySpanData(span) = *self.span_interner.get(span.0);
+////
+////        Self::Diagnostic::spanned(span, level, msg)
+//        unimplemented!("new_span")
+//    }
 
-    fn sub(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str) {
+    fn sub(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, _: Self::MultiSpan) {
         unimplemented!("sub")
     }
 
-    fn sub_span(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, span: Self::Span) {
-        unimplemented!("sub_span")
-    }
+//    fn sub_span(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, span: Self::Span) {
+//        unimplemented!("sub_span")
+//    }
 
     fn emit(&mut self, diag: Self::Diagnostic) {
         diag.emit()
@@ -566,6 +577,16 @@ impl server::Diagnostic for Rustc {
 //        MySpan(self.span_interner.intern(&MySpanData(resolved_at)))
 //    }
 //}
+
+impl server::MultiSpan for Rustc {
+    fn new(&mut self) -> Self::MultiSpan {
+        unimplemented!();
+    }
+
+    fn push(&mut self, other: &mut Self::MultiSpan, span: Self::Span) {
+        unimplemented!();
+    }
+}
 
 impl server::Span for Rustc {
     fn debug(&mut self, span: Self::Span) -> String {

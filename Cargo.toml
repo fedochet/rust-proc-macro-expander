@@ -5,13 +5,13 @@ authors = ["roma"]
 
 [dependencies]
 dylib = "0.0.3"
-quote = "0.6.5"
-rustc-ap-syntax_pos = "239.0.0"
-rustc-ap-syntax = "239.0.0"
-proc-macro2 = "=0.4.19" # latest version that can be compiled with that pr
-goblin = "0.0.17"
+quote = "0.6.10"
+rustc-ap-syntax_pos = "302.0.0"
+rustc-ap-syntax = "302.0.0"
+proc-macro2 = "0.4.24"
+goblin = "0.0.19"
 clap = "2.32.0"
 
 [dependencies.syn]
-version = "0.14.7"
+version = "0.15.21"
 features = ["full", "parsing"]

@@ -1,38 +1,36 @@
 #![feature(proc_macro_internals)]
 #![feature(proc_macro_span)]
 #![feature(proc_macro_diagnostic)]
-extern crate proc_macro;
-extern crate dylib;
-extern crate syn;
-extern crate quote;
-extern crate goblin;
 extern crate clap;
-
+extern crate dylib;
+extern crate goblin;
+extern crate proc_macro;
+extern crate proc_macro2;
+extern crate quote;
+extern crate syn;
 extern crate syntax;
 extern crate syntax_pos;
-extern crate proc_macro2;
 
-use std::path::PathBuf;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::path::PathBuf;
 
-mod rustc_server;
-
+use clap::{App, Arg};
 use dylib::DynamicLibrary;
-
+use goblin::mach::Mach;
+use goblin::Object;
 use quote::ToTokens;
 
 use proc_macro::bridge::client::ProcMacro;
+use proc_macro::bridge::server::SameThread;
 
-use std::fs::File;
-use std::io::Read;
-
-use goblin::Object;
-use goblin::mach::Mach;
-
-use clap::{Arg, App};
+mod rustc_server;
 
 static NEW_REGISTRAR_SYMBOL: &str = "__rustc_proc_macro_decls_";
 static _OLD_REGISTRAR_SYMBOL: &str = "__rustc_derive_registrar_";
+
+pub const EXEC_STRATEGY: SameThread = SameThread;
 
 fn read_bytes(file: &PathBuf) -> Option<Vec<u8>> {
     let mut fd = File::open(file).ok()?;
@@ -139,7 +137,7 @@ impl Expander {
                     let token_stream = parse_string(code).expect(
                         &format!("Error while parsing this code: '{}'", code)
                     );
-                    let res = client.run(rustc_server::Rustc::default(), token_stream);
+                    let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
                     return res.ok().map(|token_stream| token_stream.to_string());
                 }
@@ -154,11 +152,11 @@ impl Expander {
 
         for d in &self.derives {
             if let ProcMacro::CustomDerive { client, .. } = d {
-                let tokenStream = parse_string(code).expect(
+                let token_stream = parse_string(code).expect(
                     &format!("Error while parsing this code: '{}'", code)
                 );
 
-                let res = client.run(rustc_server::Rustc::default(), tokenStream);
+                let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
                 if let Ok(res) = res {
                     result.push(res.to_string())
@@ -168,7 +166,6 @@ impl Expander {
 
         result
     }
-
 }
 
 fn parse_args() -> ExpansionArgs {
