@@ -242,14 +242,6 @@ impl server::Types for Rustc {
     type MultiSpan = MultiSpan;
 }
 
-fn get_client() -> Client {
-    unimplemented!()
-}
-
-fn get_token_stream() -> TokenStream {
-    unimplemented!()
-}
-
 impl server::TokenStream for Rustc {
     fn new(&mut self) -> Self::TokenStream {
         Self::TokenStream::new()
@@ -390,11 +382,11 @@ impl server::Group for Rustc {
     }
 
     fn span_open(&mut self, group: &Self::Group) -> Self::Span {
-        unimplemented!()
+        unimplemented!("span_open is unimplemented!")
     }
 
     fn span_close(&mut self, group: &Self::Group) -> Self::Span {
-        unimplemented!()
+        unimplemented!("span_close is unimplemented!")
     }
 }
 
@@ -580,11 +572,11 @@ impl server::Diagnostic for Rustc {
 
 impl server::MultiSpan for Rustc {
     fn new(&mut self) -> Self::MultiSpan {
-        unimplemented!();
+        unimplemented!("MultiSpan::new is not implemented");
     }
 
     fn push(&mut self, other: &mut Self::MultiSpan, span: Self::Span) {
-        unimplemented!();
+        unimplemented!("MultiSpan::new is not implemented");
     }
 }
 
