@@ -1,8 +1,3 @@
-#![feature(proc_macro_internals)]
-#![feature(proc_macro_diagnostic)]
-#![feature(proc_macro_span)]
-#![feature(proc_macro_raw_ident)]
-#![feature(proc_macro)]
 extern crate proc_macro;
 extern crate proc_macro2;
 
@@ -13,10 +8,6 @@ use std::str::FromStr;
 use std::vec::IntoIter;
 use std::iter::FromIterator;
 use proc_macro2::*;
-
-type Client = proc_macro::bridge::client::Client<
-    fn(proc_macro::TokenStream) -> proc_macro::TokenStream
->;
 
 use proc_macro::{Delimiter, Spacing, Level, LineColumn};
 

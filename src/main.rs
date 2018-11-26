@@ -11,7 +11,6 @@ extern crate syn;
 extern crate syntax;
 extern crate syntax_pos;
 
-use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
