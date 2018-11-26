@@ -8,10 +8,13 @@ dylib = "0.0.3"
 quote = "0.6.10"
 rustc-ap-syntax_pos = "302.0.0"
 rustc-ap-syntax = "302.0.0"
-proc-macro2 = "0.4.24"
 goblin = "0.0.19"
 clap = "2.32.0"
 
 [dependencies.syn]
 version = "0.15.21"
 features = ["full", "parsing"]
+
+[dependencies.proc-macro2]
+version = "0.4.24"
+features = ["nightly"]

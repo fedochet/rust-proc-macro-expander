@@ -7,13 +7,13 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::vec::IntoIter;
 use std::iter::FromIterator;
-use proc_macro2::*;
 
 use proc_macro::{Delimiter, Spacing, Level, LineColumn};
 
 //#[derive(Clone)]
 //pub struct TokenStream;
 type TokenStream = proc_macro2::TokenStream;
+
 pub struct TokenStreamBuilder {
     acc: TokenStream
 }
@@ -59,13 +59,14 @@ impl Hash for MyPunctData {
 }
 
 impl Eq for MyPunctData {}
+
 impl PartialEq for MyPunctData {
     fn eq(&self, other: &Self) -> bool {
         let punct = &self.0;
         let other = &other.0;
         return punct.span().eq(&other.span())
             && punct.as_char() == other.as_char()
-            && punct.spacing() == other.spacing()
+            && punct.spacing() == other.spacing();
     }
 }
 
@@ -92,6 +93,7 @@ impl Hash for MyIdentData {
 }
 
 impl Eq for MyIdentData {}
+
 impl PartialEq for MyIdentData {
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
@@ -121,6 +123,7 @@ impl Hash for MySpanData {
 }
 
 impl Eq for MySpanData {}
+
 impl PartialEq for MySpanData {
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
@@ -149,7 +152,6 @@ impl MySpanInterner {
     fn get(&self, index: u32) -> &MySpanData {
         &self.span_data[index as usize]
     }
-
 }
 
 #[derive(Default)]
@@ -274,12 +276,11 @@ impl server::TokenStream for Rustc {
                 Self::TokenStream::from_iter(vec![tree])
             }
         }
-
     }
 
     fn into_iter(&mut self, stream: Self::TokenStream) -> Self::TokenStreamIter {
         let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
-        TokenStreamIter { trees:  trees.into_iter() }
+        TokenStreamIter { trees: trees.into_iter() }
     }
 }
 
@@ -367,17 +368,18 @@ impl server::Group for Rustc {
     fn span(&mut self, group: &Self::Group) -> Self::Span {
         MySpan(self.span_interner.intern(&MySpanData(group.span())))
     }
+
     fn set_span(&mut self, group: &mut Self::Group, span: Self::Span) {
         let MySpanData(span) = *self.span_interner.get(span.0);
         group.set_span(span);
     }
 
     fn span_open(&mut self, group: &Self::Group) -> Self::Span {
-        unimplemented!("span_open is unimplemented!")
+        MySpan(self.span_interner.intern(&MySpanData(group.span_open())))
     }
 
     fn span_close(&mut self, group: &Self::Group) -> Self::Span {
-        unimplemented!("span_close is unimplemented!")
+        MySpan(self.span_interner.intern(&MySpanData(group.span_close())))
     }
 }
 
@@ -406,7 +408,7 @@ impl server::Punct for Rustc {
 }
 
 impl server::Ident for Rustc {
-    fn new(&mut self, string: &str, span: Self::Span, is_raw: bool) -> Self::Ident {
+    fn new(&mut self, string: &str, span: Self::Span, _is_raw: bool) -> Self::Ident {
         let MySpanData(span) = self.span_interner.get(span.0);
         MyIdent(self.ident_interner.intern(&MyIdentData(proc_macro2::Ident::new(string, *span))))
     }
@@ -424,22 +426,22 @@ impl server::Ident for Rustc {
 
 impl server::Literal for Rustc {
     // FIXME(eddyb) `Literal` should not expose internal `Debug` impls.
-    fn debug(&mut self, literal: &Self::Literal) -> String {
+    fn debug(&mut self, _literal: &Self::Literal) -> String {
         unimplemented!("Literal::debug")
     }
-    fn integer(&mut self, n: &str) -> Self::Literal {
+    fn integer(&mut self, _n: &str) -> Self::Literal {
         unimplemented!("integer")
     }
-    fn typed_integer(&mut self, n: &str, kind: &str) -> Self::Literal {
+    fn typed_integer(&mut self, _n: &str, _kind: &str) -> Self::Literal {
         unimplemented!("typed_integer")
     }
-    fn float(&mut self, n: &str) -> Self::Literal {
+    fn float(&mut self, _n: &str) -> Self::Literal {
         unimplemented!("flat")
     }
-    fn f32(&mut self, n: &str) -> Self::Literal {
+    fn f32(&mut self, _n: &str) -> Self::Literal {
         unimplemented!("f32")
     }
-    fn f64(&mut self, n: &str) -> Self::Literal {
+    fn f64(&mut self, _n: &str) -> Self::Literal {
         unimplemented!("f64")
     }
     fn string(&mut self, string: &str) -> Self::Literal {
@@ -482,7 +484,7 @@ impl server::SourceFile for Rustc {
 }
 
 impl server::Diagnostic for Rustc {
-    fn new(&mut self, level: Level, msg: &str, _: Self::MultiSpan) -> Self::Diagnostic {
+    fn new(&mut self, _level: Level, _msg: &str, _: Self::MultiSpan) -> Self::Diagnostic {
         unimplemented!("new")
     }
 //    fn new_span(&mut self, level: Level, msg: &str, span: Self::Span) -> Self::Diagnostic {
@@ -492,7 +494,7 @@ impl server::Diagnostic for Rustc {
 //        unimplemented!("new_span")
 //    }
 
-    fn sub(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, _: Self::MultiSpan) {
+    fn sub(&mut self, _diag: &mut Self::Diagnostic, _level: Level, _msg: &str, _: Self::MultiSpan) {
         unimplemented!("sub")
     }
 
@@ -505,101 +507,103 @@ impl server::Diagnostic for Rustc {
     }
 }
 
-//impl server::Span for Rustc {
-//    fn debug(&mut self, span: Self::Span) -> String {
-//        unimplemented!("Span::debug")
-//    }
-//    fn def_site(&mut self) -> Self::Span {
-//        unimplemented!("Span::def_site")
-//    }
-//    fn call_site(&mut self) -> Self::Span {
-//        unimplemented!("Span::call_site")
-//    }
-//    fn source_file(&mut self, span: Self::Span) -> Self::SourceFile {
-//        let MySpanData(span) = self.span_interner.get(span.0);
-//        span.source_file()
-//    }
-//    fn parent(&mut self, span: Self::Span) -> Option<Self::Span> {
+impl server::Span for Rustc {
+    fn debug(&mut self, span: Self::Span) -> String {
+        unimplemented!("Span::debug")
+    }
+    fn def_site(&mut self) -> Self::Span {
+        MySpan(self.span_interner.intern(&MySpanData(proc_macro2::Span::def_site())))
+    }
+    fn call_site(&mut self) -> Self::Span {
+        MySpan(self.span_interner.intern(&MySpanData(proc_macro2::Span::call_site())))
+    }
+    fn source_file(&mut self, span: Self::Span) -> Self::SourceFile {
+        let MySpanData(span) = self.span_interner.get(span.0);
+        span.source_file()
+    }
+    fn parent(&mut self, span: Self::Span) -> Option<Self::Span> {
 //        let MySpanData(span) = *self.span_interner.get(span.0);
 //        if let Some(span) = span.parent() {
 //            return Some(MySpan(self.span_interner.intern(&MySpanData(span))))
 //        }
-//
-//        None
-//    }
-//    fn source(&mut self, span: Self::Span) -> Self::Span {
+
+        None
+    }
+    fn source(&mut self, span: Self::Span) -> Self::Span {
 //        let MySpanData(span) = *self.span_interner.get(span.0);
 //
 //        MySpan(self.span_interner.intern(&MySpanData(span.source())))
-//    }
-//    fn start(&mut self, span: Self::Span) -> LineColumn {
-//        let MySpanData(span) = *self.span_interner.get(span.0);
-//
+        span
+    }
+    fn start(&mut self, span: Self::Span) -> LineColumn {
+        let MySpanData(span) = *self.span_interner.get(span.0);
+
 //        span.start()
-//    }
-//    fn end(&mut self, span: Self::Span) -> LineColumn {
-//        let MySpanData(span) = *self.span_interner.get(span.0);
-//
-//        span.end()
-//    }
-//    fn join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
-//        let MySpanData(first) = *self.span_interner.get(first.0);
-//        let MySpanData(second) = *self.span_interner.get(second.0);
-//
-//        if let Some(join) = first.join(second) {
-//            return Some(MySpan(self.span_interner.intern(&MySpanData(join))));
-//        }
-//
-//        None
-//    }
-//    fn resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
-//        let MySpanData(span) = *self.span_interner.get(span.0);
-//        let MySpanData(at) = *self.span_interner.get(at.0);
-//        let resolved_at = span.resolved_at(at);
-//
-//        MySpan(self.span_interner.intern(&MySpanData(resolved_at)))
-//    }
-//}
+        span.unstable().start()
+    }
+    fn end(&mut self, span: Self::Span) -> LineColumn {
+        let MySpanData(span) = *self.span_interner.get(span.0);
+
+        span.unstable().end()
+    }
+    fn join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
+        let MySpanData(first) = *self.span_interner.get(first.0);
+        let MySpanData(second) = *self.span_interner.get(second.0);
+
+        if let Some(join) = first.join(second) {
+            return Some(MySpan(self.span_interner.intern(&MySpanData(join))));
+        }
+
+        None
+    }
+    fn resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
+        let MySpanData(span) = *self.span_interner.get(span.0);
+        let MySpanData(at) = *self.span_interner.get(at.0);
+        let resolved_at = span.resolved_at(at);
+
+        MySpan(self.span_interner.intern(&MySpanData(resolved_at)))
+    }
+}
 
 impl server::MultiSpan for Rustc {
     fn new(&mut self) -> Self::MultiSpan {
         unimplemented!("MultiSpan::new is not implemented");
     }
 
-    fn push(&mut self, other: &mut Self::MultiSpan, span: Self::Span) {
+    fn push(&mut self, _other: &mut Self::MultiSpan, _span: Self::Span) {
         unimplemented!("MultiSpan::new is not implemented");
     }
 }
 
-impl server::Span for Rustc {
-    fn debug(&mut self, span: Self::Span) -> String {
-        unimplemented!("Span::debug")
-    }
-    fn def_site(&mut self) -> Self::Span {
-        unimplemented!("def_site")
-    }
-    fn call_site(&mut self) -> Self::Span {
-        MySpan(self.span_interner.intern(&MySpanData(proc_macro2::Span::call_site())))
-    }
-    fn source_file(&mut self, span: Self::Span) -> Self::SourceFile {
-        unimplemented!("source_file")
-    }
-    fn parent(&mut self, span: Self::Span) -> Option<Self::Span> {
-        unimplemented!("parent")
-    }
-    fn source(&mut self, span: Self::Span) -> Self::Span {
-        unimplemented!("source")
-    }
-    fn start(&mut self, span: Self::Span) -> LineColumn {
-        unimplemented!("start")
-    }
-    fn end(&mut self, span: Self::Span) -> LineColumn {
-        unimplemented!("end")
-    }
-    fn join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
-        unimplemented!("join")
-    }
-    fn resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
-        unimplemented!("Span::resolved_at")
-    }
-}
+//impl server::Span for Rustc {
+//    fn debug(&mut self, _span: Self::Span) -> String {
+//        unimplemented!("Span::debug")
+//    }
+//    fn def_site(&mut self) -> Self::Span {
+//        unimplemented!("def_site")
+//    }
+//    fn call_site(&mut self) -> Self::Span {
+//        MySpan(self.span_interner.intern(&MySpanData(proc_macro2::Span::call_site())))
+//    }
+//    fn source_file(&mut self, _span: Self::Span) -> Self::SourceFile {
+//        unimplemented!("source_file")
+//    }
+//    fn parent(&mut self, _span: Self::Span) -> Option<Self::Span> {
+//        unimplemented!("parent")
+//    }
+//    fn source(&mut self, _span: Self::Span) -> Self::Span {
+//        unimplemented!("source")
+//    }
+//    fn start(&mut self, _span: Self::Span) -> LineColumn {
+//        unimplemented!("start")
+//    }
+//    fn end(&mut self, _span: Self::Span) -> LineColumn {
+//        unimplemented!("end")
+//    }
+//    fn join(&mut self, _first: Self::Span, _second: Self::Span) -> Option<Self::Span> {
+//        unimplemented!("join")
+//    }
+//    fn resolved_at(&mut self, _span: Self::Span, _at: Self::Span) -> Self::Span {
+//        unimplemented!("Span::resolved_at")
+//    }
+//}
