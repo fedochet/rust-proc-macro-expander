@@ -103,9 +103,7 @@ fn get_proc_macros(file: &PathBuf) -> Result<&'static &'static [ProcMacro], Stri
 }
 
 fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
-    let parsed_file = syn::parse_file(code).ok()?;
-
-    Some(parsed_file.into_token_stream())
+    syn::parse_str(code).ok()
 }
 
 struct ExpansionArgs {
@@ -150,16 +148,21 @@ impl Expander {
         let mut result = vec![];
 
         for d in &self.derives {
-            if let ProcMacro::CustomDerive { client, .. } = d {
-                let token_stream = parse_string(code).expect(
-                    &format!("Error while parsing this code: '{}'", code)
-                );
+            let client = match d {
+                ProcMacro::CustomDerive { client, .. } => client,
+                ProcMacro::Bang { client, .. } => client,
+//                ProcMacro::Attr { client, .. } => { client }
+                _ => { continue }
+            };
 
-                let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+            let token_stream = parse_string(code).expect(
+                &format!("Error while parsing this code: '{}'", code)
+            );
 
-                if let Ok(res) = res {
-                    result.push(res.to_string())
-                }
+            let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+
+            if let Ok(res) = res {
+                result.push(res.to_string())
             }
         }
 
