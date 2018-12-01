@@ -3,12 +3,14 @@ extern crate proc_macro2;
 
 use proc_macro::bridge::{server, TokenTree};
 use std::collections::HashMap;
+use std::collections::Bound;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::vec::IntoIter;
 use std::iter::FromIterator;
 
 use proc_macro::{Delimiter, Spacing, Level, LineColumn};
+use syntax_pos::BytePos;
 
 //#[derive(Clone)]
 //pub struct TokenStream;
@@ -461,6 +463,10 @@ impl server::Literal for Rustc {
     fn set_span(&mut self, literal: &mut Self::Literal, span: Self::Span) {
         let MySpanData(span) = *self.span_interner.get(span.0);
         literal.set_span(span);
+    }
+
+    fn subspan(&mut self, literal: &Self::Literal, start: Bound<usize>, end: Bound<usize>) -> Option<Self::Span> {
+        None // TODO add some sensible implementation
     }
 }
 
