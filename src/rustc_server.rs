@@ -45,8 +45,6 @@ pub struct TokenStreamIter {
 //pub struct Group;
 type Group = proc_macro2::Group;
 
-type MultiSpan = syntax_pos::MultiSpan;
-
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub struct MyPunct(u32);
 
@@ -234,7 +232,7 @@ impl server::Types for Rustc {
     type SourceFile = SourceFile;
     type Diagnostic = proc_macro::Diagnostic;
     type Span = MySpan;
-    type MultiSpan = MultiSpan;
+    type MultiSpan = Vec<proc_macro::Span>;
 }
 
 impl server::TokenStream for Rustc {
@@ -490,8 +488,10 @@ impl server::SourceFile for Rustc {
 }
 
 impl server::Diagnostic for Rustc {
-    fn new(&mut self, _level: Level, _msg: &str, _: Self::MultiSpan) -> Self::Diagnostic {
-        unimplemented!("new")
+    fn new(&mut self, level: Level, msg: &str, spans: Self::MultiSpan) -> Self::Diagnostic {
+        let mut diag = proc_macro::Diagnostic::new(level, msg);
+        diag.set_spans(spans);
+        diag
     }
 //    fn new_span(&mut self, level: Level, msg: &str, span: Self::Span) -> Self::Diagnostic {
 ////        let MySpanData(span) = *self.span_interner.get(span.0);
@@ -500,8 +500,8 @@ impl server::Diagnostic for Rustc {
 //        unimplemented!("new_span")
 //    }
 
-    fn sub(&mut self, _diag: &mut Self::Diagnostic, _level: Level, _msg: &str, _: Self::MultiSpan) {
-        unimplemented!("sub")
+    fn sub(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, spans: Self::MultiSpan) {
+        unimplemented!("No sub method on proc_macro::Diagnostic")
     }
 
 //    fn sub_span(&mut self, diag: &mut Self::Diagnostic, level: Level, msg: &str, span: Self::Span) {
