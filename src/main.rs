@@ -112,7 +112,7 @@ struct ExpansionArgs {
 }
 
 struct Expander {
-    derives: Vec<ProcMacro>
+    derives: Vec<(ProcMacro)>
 }
 
 impl Expander {
@@ -127,17 +127,28 @@ impl Expander {
         Ok(Expander { derives })
     }
 
-    fn expand(&self, code: &str, trait_to_expand: &str) -> Option<String> {
+    fn expand(&self, code: &str, macro_to_expand: &str) -> Option<String> {
+        let token_stream = parse_string(code).expect(
+            &format!("Error while parsing this code: '{}'", code)
+        );
+
         for derive in &self.derives {
-            if let ProcMacro::CustomDerive { trait_name, client, .. } = derive {
-                if *trait_name == trait_to_expand {
-                    let token_stream = parse_string(code).expect(
-                        &format!("Error while parsing this code: '{}'", code)
-                    );
+            match derive {
+                ProcMacro::CustomDerive { trait_name, client, .. }
+                if *trait_name == macro_to_expand => {
                     let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
                     return res.ok().map(|token_stream| token_stream.to_string());
                 }
+
+                ProcMacro::Bang { name, client }
+                if *name == macro_to_expand => {
+                    let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+
+                    return res.ok().map(|token_stream| token_stream.to_string());
+                }
+
+                _ => {}
             }
         }
 
