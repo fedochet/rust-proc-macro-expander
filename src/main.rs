@@ -19,7 +19,6 @@ use clap::{App, Arg};
 use dylib::DynamicLibrary;
 use goblin::mach::Mach;
 use goblin::Object;
-use quote::ToTokens;
 
 use proc_macro::bridge::client::ProcMacro;
 use proc_macro::bridge::server::SameThread;
@@ -127,7 +126,7 @@ impl Expander {
         Ok(Expander { derives })
     }
 
-    fn expand(&self, code: &str, macro_to_expand: &str) -> Option<String> {
+    fn expand(&self, code: &str, macro_to_expand: &str) -> Result<String, proc_macro::bridge::PanicMessage> {
         let token_stream = parse_string(code).expect(
             &format!("Error while parsing this code: '{}'", code)
         );
@@ -138,21 +137,29 @@ impl Expander {
                 if *trait_name == macro_to_expand => {
                     let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
-                    return res.ok().map(|token_stream| token_stream.to_string());
+                    return res.map(|token_stream| token_stream.to_string());
                 }
 
                 ProcMacro::Bang { name, client }
                 if *name == macro_to_expand => {
                     let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
-                    return res.ok().map(|token_stream| token_stream.to_string());
+                    return res.map(|token_stream| token_stream.to_string());
                 }
 
-                _ => {}
+                ProcMacro::Attr { name, client }
+                if *name == macro_to_expand => {
+                    // fixme attr macro needs two inputs
+                    let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), proc_macro2::TokenStream::new(), token_stream);
+
+                    return res.map(|token_stream| token_stream.to_string());
+                }
+
+                _ => { continue; }
             }
         }
 
-        None
+        Err(proc_macro::bridge::PanicMessage::String("Nothing to expand".to_string()))
     }
 
     fn expand_for_all_derives(&self, code: &str) -> Vec<String> {
@@ -230,11 +237,12 @@ fn main() {
 
     if let Some(derives) = args.derives {
         for derive in derives {
-            let expansion = expander.expand(&code_to_expand, &derive).expect(
-                &format!("Cannot perform expansion for {}!", derive)
-            );
-
-            println!("{}", expansion);
+            match expander.expand(&code_to_expand, &derive) {
+                Ok(expansion) => { println!("{}", expansion); }
+                Err(msg) => {
+                    println!("Cannot perform expansion for {}: error {:?}!", derive, msg.as_str());
+                }
+            }
         }
     } else {
         for expansion in expander.expand_for_all_derives(&code_to_expand) {

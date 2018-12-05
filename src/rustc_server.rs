@@ -10,7 +10,6 @@ use std::vec::IntoIter;
 use std::iter::FromIterator;
 
 use proc_macro::{Delimiter, Spacing, Level, LineColumn};
-use syntax_pos::BytePos;
 
 //#[derive(Clone)]
 //pub struct TokenStream;
@@ -429,27 +428,100 @@ impl server::Literal for Rustc {
     fn debug(&mut self, _literal: &Self::Literal) -> String {
         unimplemented!("Literal::debug")
     }
-    fn integer(&mut self, _n: &str) -> Self::Literal {
-        unimplemented!("integer")
+
+    fn integer(&mut self, n: &str) -> Self::Literal {
+        // note: this implementation may be incorrect
+        let n: i128 = n.parse().unwrap();
+        Literal::i128_unsuffixed(n)
     }
-    fn typed_integer(&mut self, _n: &str, _kind: &str) -> Self::Literal {
-        unimplemented!("typed_integer")
+
+    fn typed_integer(&mut self, n: &str, kind: &str) -> Self::Literal {
+        match kind {
+            "u8" => {
+                let n: u8 = n.parse().unwrap();
+                Literal::u8_suffixed(n)
+            }
+
+            "u16" => {
+                let n: u16 = n.parse().unwrap();
+                Literal::u16_suffixed(n)
+            }
+
+            "u32" => {
+                let n: u32 = n.parse().unwrap();
+                Literal::u32_suffixed(n)
+            }
+
+            "u64" => {
+                let n: u64 = n.parse().unwrap();
+                Literal::u64_suffixed(n)
+            }
+
+            "u128" => {
+                let n: u128 = n.parse().unwrap();
+                Literal::u128_suffixed(n)
+            }
+
+            "usize" => {
+                let n: usize = n.parse().unwrap();
+                Literal::usize_suffixed(n)
+            }
+
+            "i8" => {
+                let n: i8 = n.parse().unwrap();
+                Literal::i8_suffixed(n)
+            }
+
+            "i16" => {
+                let n: i16 = n.parse().unwrap();
+                Literal::i16_suffixed(n)
+            }
+
+            "i32" => {
+                let n: i32 = n.parse().unwrap();
+                Literal::i32_suffixed(n)
+            }
+
+            "i64" => {
+                let n: i64 = n.parse().unwrap();
+                Literal::i64_suffixed(n)
+            }
+
+            "i128" => {
+                let n: i128 = n.parse().unwrap();
+                Literal::i128_suffixed(n)
+            }
+            
+            _ => {
+                unimplemented!("unknown args for typed_integer: n {}, kind {}", n, kind)
+            }
+        }
     }
-    fn float(&mut self, _n: &str) -> Self::Literal {
-        unimplemented!("flat")
+
+    fn float(&mut self, n: &str) -> Self::Literal {
+        // note: this implementation may be incorrect
+        let n: f64 = n.parse().unwrap();
+        Literal::f64_unsuffixed(n)
     }
-    fn f32(&mut self, _n: &str) -> Self::Literal {
-        unimplemented!("f32")
+
+    fn f32(&mut self, n: &str) -> Self::Literal {
+        let n: f32 = n.parse().unwrap();
+        Literal::f32_suffixed(n)
     }
-    fn f64(&mut self, _n: &str) -> Self::Literal {
-        unimplemented!("f64")
+
+    fn f64(&mut self, n: &str) -> Self::Literal {
+        let n: f64 = n.parse().unwrap();
+        Literal::f64_suffixed(n)
     }
+
     fn string(&mut self, string: &str) -> Self::Literal {
         Self::Literal::string(string)
     }
+
     fn character(&mut self, ch: char) -> Self::Literal {
         Self::Literal::character(ch)
     }
+
     fn byte_string(&mut self, bytes: &[u8]) -> Self::Literal {
         Self::Literal::byte_string(bytes)
     }
