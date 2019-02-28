@@ -5,16 +5,14 @@ authors = ["roma"]
 
 [dependencies]
 dylib = "0.0.3"
-quote = "0.6.10"
-rustc-ap-syntax_pos = "302.0.0"
-rustc-ap-syntax = "302.0.0"
-goblin = "0.0.19"
+quote = "0.6.11"
+goblin = "0.0.21"
 clap = "2.32.0"
 
 [dependencies.syn]
-version = "0.15.21"
+version = "0.15.26"
 features = ["full", "parsing"]
 
 [dependencies.proc-macro2]
-version = "0.4.24"
+version = "0.4.27" #"0.4.24"
 features = ["nightly"]

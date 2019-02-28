@@ -8,8 +8,6 @@ extern crate proc_macro;
 extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
-extern crate syntax;
-extern crate syntax_pos;
 
 use std::fs::File;
 use std::io::Read;
