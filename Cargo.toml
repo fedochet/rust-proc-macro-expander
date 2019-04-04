@@ -10,7 +10,7 @@ goblin = "0.0.21"
 clap = "2.32.0"
 
 [dependencies.syn]
-version = "0.15.26"
+version = "0.15.30"
 features = ["full", "parsing"]
 
 [dependencies.proc-macro2]

@@ -599,6 +599,15 @@ impl server::Span for Rustc {
         let MySpanData(span) = self.span_interner.get(span.0);
         span.source_file()
     }
+
+    /// Recent feature, not yet in the proc_macro2
+    ///
+    /// See PR:
+    /// https://github.com/rust-lang/rust/pull/55780
+    fn source_text(&mut self, _span: Self::Span) -> Option<String> {
+        None
+    }
+
     fn parent(&mut self, span: Self::Span) -> Option<Self::Span> {
 //        let MySpanData(span) = *self.span_interner.get(span.0);
 //        if let Some(span) = span.parent() {
