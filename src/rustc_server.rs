@@ -425,8 +425,8 @@ impl server::Ident for Rustc {
 
 impl server::Literal for Rustc {
     // FIXME(eddyb) `Literal` should not expose internal `Debug` impls.
-    fn debug(&mut self, _literal: &Self::Literal) -> String {
-        unimplemented!("Literal::debug")
+    fn debug(&mut self, literal: &Self::Literal) -> String {
+        format!("{:?}", literal)
     }
 
     fn integer(&mut self, n: &str) -> Self::Literal {
@@ -587,7 +587,8 @@ impl server::Diagnostic for Rustc {
 
 impl server::Span for Rustc {
     fn debug(&mut self, span: Self::Span) -> String {
-        unimplemented!("Span::debug")
+        let MySpanData(span) = self.span_interner.get(span.0);
+        format!("{:?}", span)
     }
     fn def_site(&mut self) -> Self::Span {
         MySpan(self.span_interner.intern(&MySpanData(proc_macro2::Span::def_site())))
