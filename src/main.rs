@@ -8,6 +8,11 @@ extern crate proc_macro;
 extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+
+use serde::{Serialize, Deserialize};
 
 use std::fs::File;
 use std::io::Read;
@@ -105,7 +110,6 @@ fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
 
 struct ExpansionArgs {
     libs: Vec<PathBuf>,
-    derives: Option<Vec<String>>,
 }
 
 struct Expander {
@@ -159,31 +163,6 @@ impl Expander {
 
         Err(proc_macro::bridge::PanicMessage::String("Nothing to expand".to_string()))
     }
-
-    fn expand_for_all_derives(&self, code: &str) -> Vec<String> {
-        let mut result = vec![];
-
-        for d in &self.derives {
-            let client = match d {
-                ProcMacro::CustomDerive { client, .. } => client,
-                ProcMacro::Bang { client, .. } => client,
-//                ProcMacro::Attr { client, .. } => { client }
-                _ => { continue }
-            };
-
-            let token_stream = parse_string(code).expect(
-                &format!("Error while parsing this code: '{}'", code)
-            );
-
-            let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
-
-            if let Ok(res) = res {
-                result.push(res.to_string())
-            }
-        }
-
-        result
-    }
 }
 
 fn parse_args() -> ExpansionArgs {
@@ -198,24 +177,12 @@ fn parse_args() -> ExpansionArgs {
             .required(true)
             .help("Compiled proc macro libraries")
             .takes_value(true))
-        .arg(Arg::with_name("derives")
-            .short("d")
-            .long("derives")
-            .value_name("TRAIT")
-            .multiple(true)
-            .takes_value(true)
-            .help("Traits for which expansions should be performed"))
         .get_matches();
 
     let libs = matches.values_of("libs").expect("Cannot expand without specified --libs!");
     let libs = libs.map(|lib| PathBuf::from(lib)).collect();
 
-    let derives = match matches.values_of("derives") {
-        Some(derives) => Some(derives.map(|derive| derive.to_string()).collect()),
-        None => None
-    };
-
-    ExpansionArgs { libs, derives }
+    ExpansionArgs { libs }
 }
 
 fn read_stdin() -> String {
@@ -225,26 +192,67 @@ fn read_stdin() -> String {
     buff
 }
 
+#[derive(Deserialize)]
+struct ExpansionTask {
+    /// Argument of macro call.
+    ///
+    /// In custom derive that would be a struct or enum; in attribute-like macro - underlying
+    /// item; in function-like macro - the macro body.
+    macro_body: String,
+
+    /// Names of macros to expand.
+    ///
+    /// In custom derive those are names of derived traits (`Serialize`, `Getters`, etc.). In
+    /// attribute-like and functiona-like macros - single name of macro itself (`show_streams`).
+    macro_names: Vec<String>,
+
+    /// Possible attributes for the attribute-like macros.
+    attributes: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ExpansionResults {
+    results: Vec<ExpansionResult>
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+enum ExpansionResult {
+    #[serde(rename = "success")]
+    Success { expansion: String },
+    #[serde(rename = "error")]
+    Error { reason: String },
+}
+
 fn main() {
     let args = parse_args();
     let expander = Expander::new(&args.libs).expect(
         &format!("Cannot perform expansion wit those libs: {:?}", &args.libs)
     );
 
-    let code_to_expand = read_stdin();
+    let input = read_stdin();
+    let expansion_tasks: Vec<ExpansionTask> = serde_json::from_str(&input).expect(
+        &format!("Cannot parse '{}'", &input)
+    );
 
-    if let Some(derives) = args.derives {
-        for derive in derives {
-            match expander.expand(&code_to_expand, &derive) {
-                Ok(expansion) => { println!("{}", expansion); }
+    let mut results = vec![];
+
+    for task in expansion_tasks {
+        let mut task_results = vec![];
+
+        for derive in &task.macro_names {
+            match expander.expand(&task.macro_body, &derive) {
+                Ok(expansion) => task_results.push(ExpansionResult::Success { expansion }),
+
                 Err(msg) => {
-                    println!("Cannot perform expansion for {}: error {:?}!", derive, msg.as_str());
+                    let reason = format!("Cannot perform expansion for {}: error {:?}!", derive, msg.as_str());
+                    task_results.push(ExpansionResult::Error { reason })
                 }
             }
         }
-    } else {
-        for expansion in expander.expand_for_all_derives(&code_to_expand) {
-            println!("{}", expansion)
-        }
+
+        results.push(ExpansionResults { results: task_results })
     }
+
+    println!("{}", &serde_json::to_string(&results).expect("Cannot serialize results!"));
 }
