@@ -12,7 +12,7 @@ extern crate syn;
 extern crate serde_derive;
 extern crate serde;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use std::fs::File;
 use std::io::Read;
@@ -58,18 +58,16 @@ fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
             None
         }
 
-        Object::Mach(mach) => {
-            match mach {
-                Mach::Binary(binary) => {
-                    let exports = binary.exports().ok()?;
-                    let names = exports.iter().map(|s| s.name.clone()).collect();
+        Object::Mach(mach) => match mach {
+            Mach::Binary(binary) => {
+                let exports = binary.exports().ok()?;
+                let names = exports.iter().map(|s| s.name.clone()).collect();
 
-                    Some(names)
-                }
-
-                Mach::Fat(_) => None
+                Some(names)
             }
-        }
+
+            Mach::Fat(_) => None,
+        },
 
         Object::Archive(_) | Object::Unknown(_) => None,
     };
@@ -82,15 +80,15 @@ fn is_derive_registrar_symbol(symbol: &str) -> bool {
 fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
     let symbols = get_symbols_from_lib(file)?;
 
-    symbols.iter()
+    symbols
+        .iter()
         .find(|s| is_derive_registrar_symbol(s))
         .map(|s| s.clone())
 }
 
 fn get_proc_macros(file: &PathBuf) -> Result<&'static &'static [ProcMacro], String> {
-    let symbol_name = find_registrar_symbol(file).ok_or(
-        format!("Cannot find registrar symbol in file {:?}", file)
-    )?;
+    let symbol_name = find_registrar_symbol(file)
+        .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
 
     let lib = DynamicLibrary::open(Some(file))?;
 
@@ -113,7 +111,7 @@ struct ExpansionArgs {
 }
 
 struct Expander {
-    derives: Vec<(ProcMacro)>
+    derives: Vec<(ProcMacro)>,
 }
 
 impl Expander {
@@ -128,40 +126,53 @@ impl Expander {
         Ok(Expander { derives })
     }
 
-    fn expand(&self, code: &str, macro_to_expand: &str) -> Result<String, proc_macro::bridge::PanicMessage> {
-        let token_stream = parse_string(code).expect(
-            &format!("Error while parsing this code: '{}'", code)
-        );
+    fn expand(
+        &self,
+        code: &str,
+        macro_to_expand: &str,
+    ) -> Result<String, proc_macro::bridge::PanicMessage> {
+        let token_stream =
+            parse_string(code).expect(&format!("Error while parsing this code: '{}'", code));
 
         for derive in &self.derives {
             match derive {
-                ProcMacro::CustomDerive { trait_name, client, .. }
-                if *trait_name == macro_to_expand => {
-                    let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+                ProcMacro::CustomDerive {
+                    trait_name, client, ..
+                } if *trait_name == macro_to_expand => {
+                    let res =
+                        client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
                     return res.map(|token_stream| token_stream.to_string());
                 }
 
-                ProcMacro::Bang { name, client }
-                if *name == macro_to_expand => {
-                    let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+                ProcMacro::Bang { name, client } if *name == macro_to_expand => {
+                    let res =
+                        client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
 
                     return res.map(|token_stream| token_stream.to_string());
                 }
 
-                ProcMacro::Attr { name, client }
-                if *name == macro_to_expand => {
+                ProcMacro::Attr { name, client } if *name == macro_to_expand => {
                     // fixme attr macro needs two inputs
-                    let res = client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), proc_macro2::TokenStream::new(), token_stream);
+                    let res = client.run(
+                        &EXEC_STRATEGY,
+                        rustc_server::Rustc::default(),
+                        proc_macro2::TokenStream::new(),
+                        token_stream,
+                    );
 
                     return res.map(|token_stream| token_stream.to_string());
                 }
 
-                _ => { continue; }
+                _ => {
+                    continue;
+                }
             }
         }
 
-        Err(proc_macro::bridge::PanicMessage::String("Nothing to expand".to_string()))
+        Err(proc_macro::bridge::PanicMessage::String(
+            "Nothing to expand".to_string(),
+        ))
     }
 }
 
@@ -169,17 +180,21 @@ fn parse_args() -> ExpansionArgs {
     let matches = App::new("proc_macro_expander")
         .version("1.0")
         .about("Expands procedural macros")
-        .arg(Arg::with_name("libs")
-            .short("l")
-            .long("libs")
-            .value_name("LIBFILE")
-            .multiple(true)
-            .required(true)
-            .help("Compiled proc macro libraries")
-            .takes_value(true))
+        .arg(
+            Arg::with_name("libs")
+                .short("l")
+                .long("libs")
+                .value_name("LIBFILE")
+                .multiple(true)
+                .required(true)
+                .help("Compiled proc macro libraries")
+                .takes_value(true),
+        )
         .get_matches();
 
-    let libs = matches.values_of("libs").expect("Cannot expand without specified --libs!");
+    let libs = matches
+        .values_of("libs")
+        .expect("Cannot expand without specified --libs!");
     let libs = libs.map(|lib| PathBuf::from(lib)).collect();
 
     ExpansionArgs { libs }
@@ -187,7 +202,9 @@ fn parse_args() -> ExpansionArgs {
 
 fn read_stdin() -> String {
     let mut buff = String::new();
-    std::io::stdin().read_to_string(&mut buff).expect("Cannot read from stdin!");
+    std::io::stdin()
+        .read_to_string(&mut buff)
+        .expect("Cannot read from stdin!");
 
     buff
 }
@@ -212,7 +229,7 @@ struct ExpansionTask {
 
 #[derive(Serialize)]
 struct ExpansionResults {
-    results: Vec<ExpansionResult>
+    results: Vec<ExpansionResult>,
 }
 
 #[derive(Serialize)]
@@ -226,14 +243,14 @@ enum ExpansionResult {
 
 fn main() {
     let args = parse_args();
-    let expander = Expander::new(&args.libs).expect(
-        &format!("Cannot perform expansion wit those libs: {:?}", &args.libs)
-    );
+    let expander = Expander::new(&args.libs).expect(&format!(
+        "Cannot perform expansion wit those libs: {:?}",
+        &args.libs
+    ));
 
     let input = read_stdin();
-    let expansion_tasks: Vec<ExpansionTask> = serde_json::from_str(&input).expect(
-        &format!("Cannot parse '{}'", &input)
-    );
+    let expansion_tasks: Vec<ExpansionTask> =
+        serde_json::from_str(&input).expect(&format!("Cannot parse '{}'", &input));
 
     let mut results = vec![];
 
@@ -245,14 +262,23 @@ fn main() {
                 Ok(expansion) => task_results.push(ExpansionResult::Success { expansion }),
 
                 Err(msg) => {
-                    let reason = format!("Cannot perform expansion for {}: error {:?}!", derive, msg.as_str());
+                    let reason = format!(
+                        "Cannot perform expansion for {}: error {:?}!",
+                        derive,
+                        msg.as_str()
+                    );
                     task_results.push(ExpansionResult::Error { reason })
                 }
             }
         }
 
-        results.push(ExpansionResults { results: task_results })
+        results.push(ExpansionResults {
+            results: task_results,
+        })
     }
 
-    println!("{}", &serde_json::to_string(&results).expect("Cannot serialize results!"));
+    println!(
+        "{}",
+        &serde_json::to_string(&results).expect("Cannot serialize results!")
+    );
 }
