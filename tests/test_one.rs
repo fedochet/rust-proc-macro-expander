@@ -6,7 +6,7 @@ extern crate tempfile;
 extern crate assert_matches;
 
 use proc_macro_expander::macro_expansion::{ExpansionTask, ExpansionResults, ExpansionResult};
-use std::error::Error;
+
 use std::fs::{canonicalize, create_dir, DirEntry, File};
 use std::io;
 use std::io::Write;

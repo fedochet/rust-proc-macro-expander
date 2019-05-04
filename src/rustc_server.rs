@@ -542,9 +542,9 @@ impl server::Literal for Rustc {
 
     fn subspan(
         &mut self,
-        literal: &Self::Literal,
-        start: Bound<usize>,
-        end: Bound<usize>,
+        _literal: &Self::Literal,
+        _start: Bound<usize>,
+        _end: Bound<usize>,
     ) -> Option<Self::Span> {
         None // TODO add some sensible implementation
     }
@@ -588,10 +588,10 @@ impl server::Diagnostic for Rustc {
 
     fn sub(
         &mut self,
-        diag: &mut Self::Diagnostic,
-        level: Level,
-        msg: &str,
-        spans: Self::MultiSpan,
+        _diag: &mut Self::Diagnostic,
+        _level: Level,
+        _msg: &str,
+        _spans: Self::MultiSpan,
     ) {
         unimplemented!("No sub method on proc_macro::Diagnostic")
     }
@@ -635,7 +635,7 @@ impl server::Span for Rustc {
         None
     }
 
-    fn parent(&mut self, span: Self::Span) -> Option<Self::Span> {
+    fn parent(&mut self, _span: Self::Span) -> Option<Self::Span> {
         //        let MySpanData(span) = *self.span_interner.get(span.0);
         //        if let Some(span) = span.parent() {
         //            return Some(MySpan(self.span_interner.intern(&MySpanData(span))))
