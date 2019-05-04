@@ -10,12 +10,12 @@ extern crate serde_derive;
 use dylib::DynamicLibrary;
 use goblin::mach::Mach;
 use goblin::Object;
+use macro_expansion::{ExpansionResult, ExpansionResults, ExpansionTask};
 use proc_macro::bridge::client::ProcMacro;
 use proc_macro::bridge::server::SameThread;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use macro_expansion::{ExpansionTask, ExpansionResults, ExpansionResult};
 
 pub mod macro_expansion;
 mod rustc_server;

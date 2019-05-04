@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ExpansionTask {
     /// Argument of macro call.
     ///
@@ -20,12 +20,12 @@ pub struct ExpansionTask {
     pub libs: Vec<PathBuf>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ExpansionResults {
     pub results: Vec<ExpansionResult>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ExpansionResult {
     #[serde(rename = "success")]
