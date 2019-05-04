@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate serde_json;
 extern crate proc_macro_expander;
 extern crate tempfile;
 #[macro_use]
@@ -7,7 +5,7 @@ extern crate assert_matches;
 
 use proc_macro_expander::macro_expansion::{ExpansionTask, ExpansionResults, ExpansionResult};
 
-use std::fs::{canonicalize, create_dir, DirEntry, File};
+use std::fs::{canonicalize, create_dir, File};
 use std::io;
 use std::io::Write;
 use std::io::ErrorKind;
@@ -56,6 +54,11 @@ use proc_macro::TokenStream;
 
 #[proc_macro]
 pub fn id_macro(input: TokenStream) -> TokenStream {
+    input
+}
+
+#[proc_macro]
+pub fn make_answer_macro(input: TokenStream) -> TokenStream {
     "fn answer() -> u32 { 42 }".parse().unwrap()
 }
     "#
@@ -84,25 +87,13 @@ fn compile_proc_macro(dir: &PathBuf) -> io::Result<PathBuf> {
     }
 }
 
-#[test]
-fn foo() -> io::Result<()> {
-    let tmp_dir = TempDir::new()?;
-    setup_proc_macro_project(&tmp_dir.path().to_path_buf())?;
-    let proc_macro_dyn_lib = compile_proc_macro(&tmp_dir.path().to_path_buf())?;
-
+fn perform_expansion(task: ExpansionTask) -> io::Result<ExpansionResult> {
     let expander = proc_macro_expander_exe()?;
 
     let mut result = Command::new(expander)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()?;
-
-    let task = ExpansionTask {
-        libs: vec![proc_macro_dyn_lib],
-        macro_body: "".to_string(),
-        attributes: None,
-        macro_names: vec!["id_macro".to_string()],
-    };
 
     write!(
         result.stdin.as_mut().unwrap(),
@@ -113,12 +104,49 @@ fn foo() -> io::Result<()> {
     result.wait()?;
 
     let results: Vec<ExpansionResults> = serde_json::from_reader(result.stdout.unwrap())?;
-    let expected_success = &results[0].results[0];
 
-    assert_matches!(
-        expected_success,
-        ExpansionResult::Success { expansion } if expansion.contains("answer")
-    );
+    // FIXME this is terrible
+    Ok(results.into_iter().nth(0).unwrap().results.into_iter().nth(0).unwrap())
+}
+
+#[test]
+fn test_simple_bang_proc_macros() -> io::Result<()> {
+    let tmp_dir = TempDir::new()?;
+    setup_proc_macro_project(&tmp_dir.path().to_path_buf())?;
+    let proc_macro_dyn_lib = canonicalize(compile_proc_macro(&tmp_dir.path().to_path_buf())?)?;
+
+    {
+        let id_macro_task = ExpansionTask {
+            libs: vec![proc_macro_dyn_lib.clone()],
+            macro_body: "struct S {}".to_string(),
+            attributes: None,
+            macro_names: vec!["id_macro".to_string()],
+        };
+
+        let id_macro_expansion = perform_expansion(id_macro_task)?;
+
+        assert_matches!(
+            id_macro_expansion,
+            ExpansionResult::Success { ref expansion } if expansion.contains("struct S")
+        );
+    }
+
+    {
+        let make_answer_macro_task = ExpansionTask {
+            libs: vec![proc_macro_dyn_lib.clone()],
+            macro_body: "".to_string(),
+            attributes: None,
+            macro_names: vec!["make_answer_macro".to_string()],
+        };
+
+        let make_answer_macro_expansion = perform_expansion(make_answer_macro_task)?;
+
+        assert_matches!(
+            make_answer_macro_expansion,
+            ExpansionResult::Success { ref expansion } if expansion.contains("fn answer")
+        );
+    }
+
 
     Ok(())
 }
