@@ -90,20 +90,33 @@ fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
         .map(|s| s.clone())
 }
 
-fn get_proc_macros(file: &PathBuf) -> Result<&'static &'static [ProcMacro], String> {
-    let symbol_name = find_registrar_symbol(file)
-        .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
+/// This struct keeps opened dynamic library and macros, from it, together.
+///
+/// As long as lib is alive, exported_macros are safe to use.
+struct ProcMacroLibrary {
+    lib: DynamicLibrary,
+    exported_macros: Vec<ProcMacro>,
+}
 
-    let lib = DynamicLibrary::open(Some(file))?;
+impl ProcMacroLibrary {
+    fn open(file: &PathBuf) -> Result<ProcMacroLibrary, String> {
+        let symbol_name = find_registrar_symbol(file)
+            .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
 
-    let registrar = unsafe {
-        let symbol = lib.symbol(&symbol_name)?;
-        std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol)
-    };
+        let lib = DynamicLibrary::open(Some(file))?;
 
-    std::mem::forget(lib); // let library live for the rest of the execution
+        let registrar = unsafe {
+            let symbol = lib.symbol(&symbol_name)?;
+            std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol)
+        };
 
-    Ok(registrar)
+        let mut exported_macros: Vec<ProcMacro> = registrar.to_vec();
+
+        Ok(ProcMacroLibrary {
+            lib,
+            exported_macros,
+        })
+    }
 }
 
 fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
@@ -111,19 +124,19 @@ fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
 }
 
 struct Expander {
-    derives: Vec<ProcMacro>,
+    libs: Vec<ProcMacroLibrary>,
 }
 
 impl Expander {
-    fn new(libs: &Vec<PathBuf>) -> Result<Expander, String> {
-        let mut derives: Vec<ProcMacro> = vec![];
+    fn new(libs_paths: &Vec<PathBuf>) -> Result<Expander, String> {
+        let mut libs = vec![];
 
-        for lib in libs {
-            let macros = get_proc_macros(lib)?;
-            derives.extend(macros.iter());
+        for lib in libs_paths {
+            let library = ProcMacroLibrary::open(lib)?;
+            libs.push(library)
         }
 
-        Ok(Expander { derives })
+        Ok(Expander { libs: libs })
     }
 
     fn expand(
@@ -134,38 +147,46 @@ impl Expander {
         let token_stream =
             parse_string(code).expect(&format!("Error while parsing this code: '{}'", code));
 
-        for derive in &self.derives {
-            match derive {
-                ProcMacro::CustomDerive {
-                    trait_name, client, ..
-                } if *trait_name == macro_to_expand => {
-                    let res =
-                        client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+        for lib in &self.libs {
+            for proc_macro in &lib.exported_macros {
+                match proc_macro {
+                    ProcMacro::CustomDerive {
+                        trait_name, client, ..
+                    } if *trait_name == macro_to_expand => {
+                        let res = client.run(
+                            &EXEC_STRATEGY,
+                            rustc_server::Rustc::default(),
+                            token_stream,
+                        );
 
-                    return res.map(|token_stream| token_stream.to_string());
-                }
+                        return res.map(|token_stream| token_stream.to_string());
+                    }
 
-                ProcMacro::Bang { name, client } if *name == macro_to_expand => {
-                    let res =
-                        client.run(&EXEC_STRATEGY, rustc_server::Rustc::default(), token_stream);
+                    ProcMacro::Bang { name, client } if *name == macro_to_expand => {
+                        let res = client.run(
+                            &EXEC_STRATEGY,
+                            rustc_server::Rustc::default(),
+                            token_stream,
+                        );
 
-                    return res.map(|token_stream| token_stream.to_string());
-                }
+                        return res.map(|token_stream| token_stream.to_string());
+                    }
 
-                ProcMacro::Attr { name, client } if *name == macro_to_expand => {
-                    // fixme attr macro needs two inputs
-                    let res = client.run(
-                        &EXEC_STRATEGY,
-                        rustc_server::Rustc::default(),
-                        proc_macro2::TokenStream::new(),
-                        token_stream,
-                    );
+                    ProcMacro::Attr { name, client } if *name == macro_to_expand => {
+                        // fixme attr macro needs two inputs
+                        let res = client.run(
+                            &EXEC_STRATEGY,
+                            rustc_server::Rustc::default(),
+                            proc_macro2::TokenStream::new(),
+                            token_stream,
+                        );
 
-                    return res.map(|token_stream| token_stream.to_string());
-                }
+                        return res.map(|token_stream| token_stream.to_string());
+                    }
 
-                _ => {
-                    continue;
+                    _ => {
+                        continue;
+                    }
                 }
             }
         }
