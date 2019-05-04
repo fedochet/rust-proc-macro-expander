@@ -37,7 +37,7 @@ you can launch proc_macro_expander like this:
 You can launch tests with this command: 
 
 ```
-> RUST_BACKTRACE=1 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly-2019-04-01 test
+> RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly-2019-04-01 test
 ```
 
 Current stable and nighly builds are having incompatible ABIs due to [this PR](https://github.com/rust-lang/rust/pull/59820). 
