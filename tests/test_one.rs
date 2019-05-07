@@ -6,7 +6,7 @@ extern crate assert_matches;
 use proc_macro_expander::macro_expansion::{ExpansionTask, ExpansionResults, ExpansionResult};
 
 use std::fs::{canonicalize, create_dir, File};
-use std::io;
+use std::{io, fs};
 use std::io::Write;
 use std::io::ErrorKind;
 use std::path::PathBuf;
@@ -84,6 +84,10 @@ fn compile_proc_macro(dir: &PathBuf) -> io::Result<PathBuf> {
         .status()?;
 
     // FIXME change for windows
+
+    for entry in fs::read_dir(dir.join("target").join("debug"))? {
+        println!("{:?}", entry?.path())
+    }
 
     let buf = dir
         .join("target")

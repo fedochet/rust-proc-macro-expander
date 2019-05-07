@@ -35,7 +35,7 @@ steps:
   - script: cargo +nightly-2019-04-01 build --all
     displayName: Cargo build
     env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
-  - script: cargo +nightly-2019-04-01 test --all
+  - script: cargo +nightly-2019-04-01 test --all -- --nocapture
     displayName: Cargo test
     env: {
       RUSTFLAGS: "--cfg procmacro2_semver_exempt",
