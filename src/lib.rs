@@ -1,14 +1,14 @@
 #![feature(proc_macro_internals)]
 #![feature(proc_macro_span)]
 #![feature(proc_macro_diagnostic)]
-extern crate dylib;
+//extern crate dylib;
 extern crate sharedlib;
 extern crate goblin;
 extern crate proc_macro;
 #[macro_use]
 extern crate serde_derive;
 
-use dylib::DynamicLibrary;
+//use dylib::DynamicLibrary;
 use goblin::mach::Mach;
 use goblin::Object;
 use macro_expansion::{ExpansionResult, ExpansionResults, ExpansionTask};
@@ -81,7 +81,7 @@ fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
     symbols
         .iter()
         .find(|s| is_derive_registrar_symbol(s))
-        .map(|s| s.clone())
+        .map(|s| s.to_string())
 }
 
 struct ProcMacroLibrarySharedLib {
@@ -112,34 +112,34 @@ impl ProcMacroLibrarySharedLib {
 }
 
 
-/// This struct keeps opened dynamic library and macros, from it, together.
-///
-/// As long as lib is alive, exported_macros are safe to use.
-struct ProcMacroLibraryDylib {
-    lib: DynamicLibrary,
-    exported_macros: Vec<ProcMacro>,
-}
-
-impl ProcMacroLibraryDylib {
-    fn open(file: &PathBuf) -> Result<ProcMacroLibraryDylib, String> {
-        let symbol_name = find_registrar_symbol(file)
-            .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
-
-        let lib = DynamicLibrary::open(Some(file))?;
-
-        let registrar = unsafe {
-            let symbol = lib.symbol(&symbol_name)?;
-            std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol)
-        };
-
-        let exported_macros: Vec<ProcMacro> = registrar.to_vec();
-
-        Ok(ProcMacroLibraryDylib {
-            lib,
-            exported_macros,
-        })
-    }
-}
+///// This struct keeps opened dynamic library and macros, from it, together.
+/////
+///// As long as lib is alive, exported_macros are safe to use.
+//struct ProcMacroLibraryDylib {
+//    lib: DynamicLibrary,
+//    exported_macros: Vec<ProcMacro>,
+//}
+//
+//impl ProcMacroLibraryDylib {
+//    fn open(file: &PathBuf) -> Result<ProcMacroLibraryDylib, String> {
+//        let symbol_name = find_registrar_symbol(file)
+//            .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
+//
+//        let lib = DynamicLibrary::open(Some(file))?;
+//
+//        let registrar = unsafe {
+//            let symbol = lib.symbol(&symbol_name)?;
+//            std::mem::transmute::<*mut u8, &&[ProcMacro]>(symbol)
+//        };
+//
+//        let exported_macros: Vec<ProcMacro> = registrar.to_vec();
+//
+//        Ok(ProcMacroLibraryDylib {
+//            lib,
+//            exported_macros,
+//        })
+//    }
+//}
 
 type ProcMacroLibraryImpl = ProcMacroLibrarySharedLib;
 
