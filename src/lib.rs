@@ -2,6 +2,7 @@
 #![feature(proc_macro_span)]
 #![feature(proc_macro_diagnostic)]
 extern crate dylib;
+extern crate sharedlib;
 extern crate goblin;
 extern crate proc_macro;
 #[macro_use]
@@ -16,6 +17,7 @@ use proc_macro::bridge::server::SameThread;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use sharedlib::{Lib, Data, Symbol};
 
 pub mod macro_expansion;
 mod rustc_server;
@@ -82,16 +84,44 @@ fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
         .map(|s| s.clone())
 }
 
+struct ProcMacroLibrarySharedLib {
+    lib: Lib,
+    exported_macros: Vec<ProcMacro>,
+}
+
+impl ProcMacroLibrarySharedLib {
+    fn open(file: &PathBuf) -> Result<Self, String> {
+        let symbol_name = find_registrar_symbol(file)
+            .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
+
+        let lib = unsafe { Lib::new(file) }.map_err(|e| e.to_string())?;
+
+        let exported_macros = {
+            // data already implies reference
+            let macros: Data<&[ProcMacro]> = unsafe { lib.find_data(&symbol_name) }
+                .map_err(|e| e.to_string())?;
+
+            unsafe { *macros.get() }.to_vec()
+        };
+
+        Ok(ProcMacroLibrarySharedLib {
+            lib,
+            exported_macros,
+        })
+    }
+}
+
+
 /// This struct keeps opened dynamic library and macros, from it, together.
 ///
 /// As long as lib is alive, exported_macros are safe to use.
-struct ProcMacroLibrary {
+struct ProcMacroLibraryDylib {
     lib: DynamicLibrary,
     exported_macros: Vec<ProcMacro>,
 }
 
-impl ProcMacroLibrary {
-    fn open(file: &PathBuf) -> Result<ProcMacroLibrary, String> {
+impl ProcMacroLibraryDylib {
+    fn open(file: &PathBuf) -> Result<ProcMacroLibraryDylib, String> {
         let symbol_name = find_registrar_symbol(file)
             .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
 
@@ -104,15 +134,17 @@ impl ProcMacroLibrary {
 
         let exported_macros: Vec<ProcMacro> = registrar.to_vec();
 
-        Ok(ProcMacroLibrary {
+        Ok(ProcMacroLibraryDylib {
             lib,
             exported_macros,
         })
     }
 }
 
+type ProcMacroLibraryImpl = ProcMacroLibrarySharedLib;
+
 pub struct Expander {
-    libs: Vec<ProcMacroLibrary>,
+    libs: Vec<ProcMacroLibraryImpl>,
 }
 
 impl Expander {
@@ -120,7 +152,7 @@ impl Expander {
         let mut libs = vec![];
 
         for lib in libs_paths {
-            let library = ProcMacroLibrary::open(lib)?;
+            let library = ProcMacroLibraryImpl::open(lib)?;
             libs.push(library)
         }
 
