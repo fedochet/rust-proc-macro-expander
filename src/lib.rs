@@ -51,9 +51,12 @@ fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
             Some(names)
         }
 
-        Object::PE(_) => {
-            // TODO: handle windows dlls
-            None
+        Object::PE(pe) => {
+            let symbol_names = pe.exports.iter()
+                .flat_map(|s| s.name)
+                .map(|n| n.to_string())
+                .collect();
+            Some(symbol_names)
         }
 
         Object::Mach(mach) => match mach {
