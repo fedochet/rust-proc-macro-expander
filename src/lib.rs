@@ -172,7 +172,7 @@ impl ProcMacroLibrarySharedLib {
 //    }
 //}
 
-type ProcMacroLibraryImpl = ProcMacroLibraryLibloading;
+type ProcMacroLibraryImpl = ProcMacroLibrarySharedLib;
 
 pub struct Expander {
     libs: Vec<ProcMacroLibraryImpl>,
