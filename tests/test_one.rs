@@ -121,9 +121,11 @@ fn perform_expansion(task: ExpansionTask) -> io::Result<ExpansionResult> {
 
 #[test]
 fn test_simple_bang_proc_macros() -> io::Result<()> {
-    let tmp_dir = TempDir::new()?;
-    setup_proc_macro_project(&tmp_dir.path().to_path_buf())?;
-    let proc_macro_dyn_lib = canonicalize(compile_proc_macro(&tmp_dir.path().to_path_buf())?)?;
+    let tmp_dir = TempDir::new().expect("Cannot create temp dir");
+    setup_proc_macro_project(&tmp_dir.path().to_path_buf()).expect("Cannot setup test project");
+    let proc_macro_dyn_lib = compile_proc_macro(&tmp_dir.path().to_path_buf())
+        .and_then(|p| canonicalize(p))
+        .expect("Cannot find proc macro!");
 
     {
         let id_macro_task = ExpansionTask {
@@ -133,7 +135,9 @@ fn test_simple_bang_proc_macros() -> io::Result<()> {
             macro_names: vec!["id_macro".to_string()],
         };
 
-        let id_macro_expansion = perform_expansion(id_macro_task)?;
+        let id_macro_expansion = perform_expansion(id_macro_task).expect(
+            "Cannot perform expansion for 'id_macro'"
+        );
 
         assert_matches!(
             id_macro_expansion,
@@ -149,7 +153,9 @@ fn test_simple_bang_proc_macros() -> io::Result<()> {
             macro_names: vec!["make_answer_macro".to_string()],
         };
 
-        let make_answer_macro_expansion = perform_expansion(make_answer_macro_task)?;
+        let make_answer_macro_expansion = perform_expansion(make_answer_macro_task).expect(
+            "Cannot perform expansion for 'make_answer_macro'"
+        );
 
         assert_matches!(
             make_answer_macro_expansion,

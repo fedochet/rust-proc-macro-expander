@@ -37,4 +37,7 @@ steps:
     env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
   - script: cargo +nightly-2019-04-01 test --all
     displayName: Cargo test
-    env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
+    env: {
+      RUSTFLAGS: "--cfg procmacro2_semver_exempt",
+      RUST_BACKTRACE: 1
+    }
