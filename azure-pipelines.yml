@@ -10,10 +10,15 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+  - script: |
+      curl https://sh.rustup.rs -sSf | sh -s -- -y
+      echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
+    displayName: Install rust
+  - script: rustup install nightly-2019-04-01
+    displayName: Install nightly-2019-04-01
+  - script: cargo +nightly-2019-04-01 build --all
+    displayName: Cargo build
+    env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
+  - script: cargo +nightly-2019-04-01 test --all
+    displayName: Cargo test
+    env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
