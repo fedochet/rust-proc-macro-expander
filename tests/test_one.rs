@@ -76,6 +76,13 @@ static DYLIB_NAME_EXTENSION: &str = ".dylib";
 #[cfg(target_os = "windows")]
 static DYLIB_NAME_EXTENSION: &str = ".dll";
 
+
+#[cfg(not(target_os = "windows"))]
+static DYLIB_NAME_PREFIX: &str = "lib";
+
+#[cfg(target_os = "windows")]
+static DYLIB_NAME_PREFIX: &str = "";
+
 fn compile_proc_macro(dir: &PathBuf) -> io::Result<PathBuf> {
     Command::new("cargo")
         .current_dir(dir)
@@ -83,16 +90,10 @@ fn compile_proc_macro(dir: &PathBuf) -> io::Result<PathBuf> {
         .arg("build")
         .status()?;
 
-    // FIXME change for windows
-
-    for entry in fs::read_dir(dir.join("target").join("debug"))? {
-        println!("{:?}", entry?.path())
-    }
-
     let buf = dir
         .join("target")
         .join("debug")
-        .join(format!("libtest_proc_macro{}", DYLIB_NAME_EXTENSION));
+        .join(format!("{}test_proc_macro{}", DYLIB_NAME_PREFIX, DYLIB_NAME_EXTENSION));
 
     if buf.is_file() {
         Ok(buf)
