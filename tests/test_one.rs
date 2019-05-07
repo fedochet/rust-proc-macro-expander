@@ -67,6 +67,15 @@ pub fn make_answer_macro(input: TokenStream) -> TokenStream {
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+static DYLIB_NAME_EXTENSION: &str = ".so";
+
+#[cfg(target_os = "macos")]
+static DYLIB_NAME_EXTENSION: &str = ".dlib";
+
+#[cfg(target_os = "windows")]
+static DYLIB_NAME_EXTENSION: &str = ".dll";
+
 fn compile_proc_macro(dir: &PathBuf) -> io::Result<PathBuf> {
     Command::new("cargo")
         .current_dir(dir)
@@ -79,7 +88,8 @@ fn compile_proc_macro(dir: &PathBuf) -> io::Result<PathBuf> {
     let buf = dir
         .join("target")
         .join("debug")
-        .join("libtest_proc_macro.so");
+        .join(format!("libtest_proc_macro{}", DYLIB_NAME_EXTENSION));
+
     if buf.is_file() {
         Ok(buf)
     } else {
