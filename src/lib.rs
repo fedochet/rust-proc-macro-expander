@@ -3,6 +3,7 @@
 #![feature(proc_macro_diagnostic)]
 //extern crate dylib;
 extern crate sharedlib;
+extern crate libloading;
 extern crate goblin;
 extern crate proc_macro;
 #[macro_use]
@@ -18,6 +19,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use sharedlib::{Lib, Data, Symbol};
+use libloading::Library;
 
 pub mod macro_expansion;
 mod rustc_server;
@@ -87,6 +89,33 @@ fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+struct ProcMacroLibraryLibloading {
+    lib: Library,
+    exported_macros: Vec<ProcMacro>,
+}
+
+impl ProcMacroLibraryLibloading {
+    fn open(file: &PathBuf) -> Result<Self, String> {
+        let symbol_name = find_registrar_symbol(file)
+            .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
+
+        let lib = Library::new(file).map_err(|e| e.to_string())?;
+
+        let exported_macros = {
+            // data already implies reference
+            let macros: libloading::Symbol<&&[ProcMacro]> = unsafe { lib.get(symbol_name.as_bytes()) }
+                .map_err(|e| e.to_string())?;
+
+            macros.to_vec()
+        };
+
+        Ok(ProcMacroLibraryLibloading {
+            lib,
+            exported_macros,
+        })
+    }
+}
+
 struct ProcMacroLibrarySharedLib {
     lib: Lib,
     exported_macros: Vec<ProcMacro>,
@@ -113,7 +142,6 @@ impl ProcMacroLibrarySharedLib {
         })
     }
 }
-
 
 ///// This struct keeps opened dynamic library and macros, from it, together.
 /////
@@ -144,7 +172,7 @@ impl ProcMacroLibrarySharedLib {
 //    }
 //}
 
-type ProcMacroLibraryImpl = ProcMacroLibrarySharedLib;
+type ProcMacroLibraryImpl = ProcMacroLibraryLibloading;
 
 pub struct Expander {
     libs: Vec<ProcMacroLibraryImpl>,
