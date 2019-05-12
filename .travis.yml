@@ -4,6 +4,7 @@ env:
 os:
   - linux
   - windows
+  - osx
 
 language: rust
 rust:

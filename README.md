@@ -1,6 +1,7 @@
 # rust-proc-macro-expander
 
 [![Build Status](https://dev.azure.com/fedochet/rust-proc-macro-expander/_apis/build/status/fedochet.rust-proc-macro-expander?branchName=master)](https://dev.azure.com/fedochet/rust-proc-macro-expander/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://travis-ci.org/fedochet/rust-proc-macro-expander.svg?branch=master)](https://travis-ci.org/fedochet/rust-proc-macro-expander)
 
 This utility is capable of calling compiled Rust custom derive dynamic libraries on arbitrary code.
 
