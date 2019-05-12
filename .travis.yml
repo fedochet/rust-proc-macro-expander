@@ -7,4 +7,7 @@ os:
 
 language: rust
 rust:
-  - nightly
+  - nightly-2019-04-01
+
+before_install:
+  - rustup install stable
