@@ -1,8 +1,3 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - master
 
@@ -10,8 +5,8 @@ strategy:
   matrix:
     linux:
       imageName: 'ubuntu-16.04'
-    mac:
-      imageName: 'macos-10.13'
+#    mac:
+#      imageName: 'macos-10.13'
     windows:
       imageName: 'vs2017-win2016'
 
@@ -32,10 +27,10 @@ steps:
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
   - script: rustup install nightly-2019-04-01
     displayName: Install nightly-2019-04-01
-  - script: cargo +nightly-2019-04-01 build --all
+  - script: cargo +nightly-2019-04-01 build --release --all
     displayName: Cargo build
     env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
-  - script: cargo +nightly-2019-04-01 test --all -- --nocapture
+  - script: cargo +nightly-2019-04-01 test --release --all -- --nocapture
     displayName: Cargo test
     env: {
       RUSTFLAGS: "--cfg procmacro2_semver_exempt",
