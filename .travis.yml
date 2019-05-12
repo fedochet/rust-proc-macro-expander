@@ -1,14 +1,18 @@
 env:
+  matrix:
   - RUSTFLAGS='--cfg procmacro2_semver_exempt'
-
 os:
-  - linux
-  - windows
-  - osx
-
+- linux
+- windows
 language: rust
 rust:
-  - nightly-2019-04-01
-
+- nightly-2019-04-01
 before_install:
-  - rustup install stable
+- rustup install stable
+deploy:
+  provider: releases
+  api_key:
+    secure: BqI5K4mI17Ems0RiB/+HmGegoGlNBsUFJ7H9KlYAD0w3uxoErV3ffYnIFRhsr/G1SxoeMDfsnqzW+TsqtMVWO0xfdpk5+TEamFgQCRwrYbIjDzqJmP48nQEgNWB8g5CBwuFqVyq7KtsrtIBlC0XifM3JRu//TPqWQQ4avVVJbUOk46YI+N4fByesnV8s+Ci3PIewW6y4E6omJSU5Im2ZUYdibd1jwqYGYazpMEJ4H4oSVeB+hs/decTGzITc4FH+9FISFYowYulDq9TFxeSDmek88TrLCVuyeVpCqsfpTpX9EJNKBx51YSmY0Og/HiDeh8KRBNZsdD4o+wbGB8MUMMsRoE2Oy8qUXg9Ki7e7nSjZEkYX8ZiQx7689R5vmZN4Q+cDEOw5kWGWWMsLOamVhK/wd3ARh9NNuwog0pqsGCxLLuevWGNHOPyX/KghjwDS4OV3WFw9ZjbtQAK17TTKLqtnWFMql+1oVftYbcK1W1B9bRUT8yZsnVYQAl2Klr2xipgP6tt34J+67gXXeqviGGiQGMEfkfADORQRnrJ6Rvh9YVgzyN6qb6SnJfp25DJgrPSu+gI7BDoBzW8+PyO0wfo5x+95V5LoqWvNcbPiaD66VUNCWHJ51cBhRrMXkF/Boi9UW67+KmwXm30DCy8jvSDzGlyvXMIxZGFRISTGLZ8=
+  skip_cleanup: true
+  on:
+    tags: true
