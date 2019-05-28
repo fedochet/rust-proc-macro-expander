@@ -5,7 +5,7 @@ extern crate proc_macro_expander;
 
 use std::io::Read;
 
-use proc_macro_expander::macro_expansion::{ExpansionResults, ExpansionTask};
+use proc_macro_expander::macro_expansion::{ExpansionTask, ExpansionResult};
 
 fn read_stdin() -> String {
     let mut buff = String::new();
@@ -21,7 +21,7 @@ fn main() {
     let expansion_tasks: Vec<ExpansionTask> =
         serde_json::from_str(&input).expect(&format!("Cannot parse '{}'", &input));
 
-    let results: Vec<ExpansionResults> = expansion_tasks
+    let results: Vec<ExpansionResult> = expansion_tasks
         .iter()
         .map(|task| proc_macro_expander::expand_task(&task))
         .collect();

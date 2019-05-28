@@ -12,7 +12,7 @@ extern crate serde_derive;
 //use dylib::DynamicLibrary;
 use goblin::mach::Mach;
 use goblin::Object;
-use macro_expansion::{ExpansionResult, ExpansionResults, ExpansionTask};
+use macro_expansion::{ExpansionResult, ExpansionTask};
 use proc_macro::bridge::client::ProcMacro;
 use proc_macro::bridge::server::SameThread;
 use std::fs::File;
@@ -248,30 +248,22 @@ impl Expander {
     }
 }
 
-pub fn expand_task(task: &ExpansionTask) -> ExpansionResults {
-    let mut task_results = vec![];
-
+pub fn expand_task(task: &ExpansionTask) -> ExpansionResult {
     let expander = Expander::new(&task.libs).expect("Cannot expand without specified --libs!");
 
-    for macro_name in &task.macro_names {
-        let result = match expander.expand(&task.macro_body, &macro_name) {
-            Ok(expansion) => ExpansionResult::Success { expansion },
+    let result = match expander.expand(&task.macro_body, &task.macro_name) {
+        Ok(expansion) => ExpansionResult::Success { expansion },
 
-            Err(msg) => {
-                let reason = format!(
-                    "Cannot perform expansion for {}: error {:?}!",
-                    macro_name,
-                    msg.as_str()
-                );
+        Err(msg) => {
+            let reason = format!(
+                "Cannot perform expansion for {}: error {:?}!",
+                &task.macro_name,
+                msg.as_str()
+            );
 
-                ExpansionResult::Error { reason }
-            }
-        };
+            ExpansionResult::Error { reason }
+        }
+    };
 
-        task_results.push(result);
-    }
-
-    ExpansionResults {
-        results: task_results,
-    }
+    result
 }

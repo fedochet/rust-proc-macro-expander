@@ -21,7 +21,7 @@ and compiled procedural macro `id_macro` somewhere:
 [
   {
     "macro_body": "struct S {}", 
-    "macro_names": [ "id_macro" ],
+    "macro_name": "id_macro",
     "libs": [ "path/to/libid_macro.so" ]
   }
 ]
@@ -32,7 +32,7 @@ you can launch proc_macro_expander like this:
 ```
 > cat expansion_task.json | ./proc_macro_expander
 
-[ {"results": [ {"type": "success", "expansion": "struct S { }"} ] } ]
+[ {"type": "success", "expansion": "struct S { }"} ]
 ```
 
 ## Testing

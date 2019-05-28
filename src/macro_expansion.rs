@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ExpansionTask {
     /// Argument of macro call.
     ///
@@ -12,17 +12,12 @@ pub struct ExpansionTask {
     ///
     /// In custom derive those are names of derived traits (`Serialize`, `Getters`, etc.). In
     /// attribute-like and functiona-like macros - single name of macro itself (`show_streams`).
-    pub macro_names: Vec<String>,
+    pub macro_name: String,
 
     /// Possible attributes for the attribute-like macros.
     pub attributes: Option<String>,
 
     pub libs: Vec<PathBuf>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ExpansionResults {
-    pub results: Vec<ExpansionResult>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
