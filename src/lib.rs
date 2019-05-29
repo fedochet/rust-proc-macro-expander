@@ -17,7 +17,7 @@ use proc_macro::bridge::client::ProcMacro;
 use proc_macro::bridge::server::SameThread;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 use sharedlib::{Lib, Data, Symbol};
 use libloading::Library;
 
@@ -33,7 +33,7 @@ fn parse_string(code: &str) -> Option<proc_macro2::TokenStream> {
     syn::parse_str(code).ok()
 }
 
-fn read_bytes(file: &PathBuf) -> Option<Vec<u8>> {
+fn read_bytes(file: &Path) -> Option<Vec<u8>> {
     let mut fd = File::open(file).ok()?;
     let mut buffer = Vec::new();
     fd.read_to_end(&mut buffer).ok()?;
@@ -41,7 +41,7 @@ fn read_bytes(file: &PathBuf) -> Option<Vec<u8>> {
     Some(buffer)
 }
 
-fn get_symbols_from_lib(file: &PathBuf) -> Option<Vec<String>> {
+fn get_symbols_from_lib(file: &Path) -> Option<Vec<String>> {
     let buffer = read_bytes(file)?;
     let object = Object::parse(&buffer).ok()?;
 
@@ -80,7 +80,7 @@ fn is_derive_registrar_symbol(symbol: &str) -> bool {
     symbol.contains(NEW_REGISTRAR_SYMBOL)
 }
 
-fn find_registrar_symbol(file: &PathBuf) -> Option<String> {
+fn find_registrar_symbol(file: &Path) -> Option<String> {
     let symbols = get_symbols_from_lib(file)?;
 
     symbols
@@ -95,7 +95,7 @@ struct ProcMacroLibraryLibloading {
 }
 
 impl ProcMacroLibraryLibloading {
-    fn open(file: &PathBuf) -> Result<Self, String> {
+    fn open(file: &Path) -> Result<Self, String> {
         let symbol_name = find_registrar_symbol(file)
             .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
 
@@ -122,7 +122,7 @@ struct ProcMacroLibrarySharedLib {
 }
 
 impl ProcMacroLibrarySharedLib {
-    fn open(file: &PathBuf) -> Result<Self, String> {
+    fn open(file: &Path) -> Result<Self, String> {
         let symbol_name = find_registrar_symbol(file)
             .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
 
@@ -172,18 +172,25 @@ impl ProcMacroLibrarySharedLib {
 //    }
 //}
 
-type ProcMacroLibraryImpl = ProcMacroLibrarySharedLib;
+type ProcMacroLibraryImpl = ProcMacroLibraryLibloading;
 
 pub struct Expander {
     libs: Vec<ProcMacroLibraryImpl>,
 }
 
 impl Expander {
-    pub fn new(libs_paths: &Vec<PathBuf>) -> Result<Expander, String> {
+    pub fn new<P: AsRef<Path>>(libs_paths: &[P]) -> Result<Expander, String> {
         let mut libs = vec![];
 
         for lib in libs_paths {
-            let library = ProcMacroLibraryImpl::open(lib)?;
+            /* Some libraries for dynamic loading require canonicalized path (even when it is
+            already absolute
+            */
+            let lib = lib.as_ref().canonicalize().expect(
+                &format!("Cannot canonicalize {:?}", lib.as_ref())
+            );
+
+            let library = ProcMacroLibraryImpl::open(&lib)?;
             libs.push(library)
         }
 
@@ -249,7 +256,9 @@ impl Expander {
 }
 
 pub fn expand_task(task: &ExpansionTask) -> ExpansionResult {
-    let expander = Expander::new(&task.libs).expect("Cannot expand without specified --libs!");
+    let expander = Expander::new(&task.libs).expect(
+        &format!("Cannot expand with provided libraries: ${:?}", &task.libs)
+    );
 
     let result = match expander.expand(&task.macro_body, &task.macro_name) {
         Ok(expansion) => ExpansionResult::Success { expansion },

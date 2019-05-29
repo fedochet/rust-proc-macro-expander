@@ -27,10 +27,10 @@ steps:
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
   - script: rustup install nightly-2019-04-01
     displayName: Install nightly-2019-04-01
-  - script: cargo +nightly-2019-04-01 build --release --all
+  - script: cargo +nightly-2019-04-01 build --all
     displayName: Cargo build
     env: { RUSTFLAGS: "--cfg procmacro2_semver_exempt" }
-  - script: cargo +nightly-2019-04-01 test --release --all -- --nocapture
+  - script: cargo +nightly-2019-04-01 test --all -- --nocapture
     displayName: Cargo test
     env: {
       RUSTFLAGS: "--cfg procmacro2_semver_exempt",

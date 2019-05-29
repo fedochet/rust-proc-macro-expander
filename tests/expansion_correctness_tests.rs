@@ -210,10 +210,6 @@ fn test_proc_macro_libraries() {
     setup_project_with_derives(&tmp_dir.path()).expect("Cannot setup test project");
     let serde_derive_lib = compile_proc_macro(&tmp_dir.path(), "serde_derive")
         .expect("Cannot find proc macro!");
-    let getset_lib = compile_proc_macro(&tmp_dir.path(), "getset")
-        .expect("Cannot find proc macro!");
-    let builder_derive_lib = compile_proc_macro(&tmp_dir.path(), "derive_builder")
-        .expect("Cannot find proc macro!");
 
     {
         let serialize_macro_task = ExpansionTask {
