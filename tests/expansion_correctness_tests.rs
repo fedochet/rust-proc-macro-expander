@@ -208,46 +208,26 @@ fn test_simple_bang_proc_macros() -> io::Result<()> {
 fn test_proc_macro_libraries() {
     let tmp_dir = TempDir::new().expect("Cannot create temp dir");
     setup_project_with_derives(&tmp_dir.path()).expect("Cannot setup test project");
-    let serde_derive_lib = compile_proc_macro(&tmp_dir.path(), "serde_derive")
+    let getset_lib = compile_proc_macro(&tmp_dir.path(), "getset")
         .expect("Cannot find proc macro!");
 
     {
-        let serialize_macro_task = ExpansionTask {
-            libs: vec![serde_derive_lib.clone()],
-            macro_body: "struct S {}".to_string(),
-            macro_name: "Serialize".to_string(),
+        let expansion_task = ExpansionTask {
+            libs: vec![getset_lib.clone()],
+            macro_body: "struct S { #[set] y: i32 }".to_string(),
+            macro_name: "Setters".to_string(),
             attributes: None,
         };
 
-        let expansion_result = perform_expansion(serialize_macro_task).expect(
-            "Cannot perform expansion for 'id_macro'"
+        let expansion_result = perform_expansion(expansion_task).expect(
+            "Cannot perform expansion for 'Setters'"
         );
 
         assert_matches!(
             expansion_result,
             ExpansionResult::Success { ref expansion }
-            if expansion.contains("_serde :: Serialize")
+            if expansion.contains("fn set_y")
         );
     }
-
-    {
-        let deserialize_macro_task = ExpansionTask {
-            libs: vec![serde_derive_lib.clone()],
-            macro_body: "struct S { x: i32 } ".to_string(),
-            macro_name: "Deserialize".to_string(),
-            attributes: None,
-        };
-
-        let expansion_result = perform_expansion(deserialize_macro_task).expect(
-            "Cannot perform expansion for 'serde::Deserialize'"
-        );
-
-        assert_matches!(
-            expansion_result,
-            ExpansionResult::Success { ref expansion }
-            if expansion.contains("_serde :: Deserializer")
-        );
-    }
-
 }
 

@@ -102,7 +102,6 @@ impl ProcMacroLibraryLibloading {
         let lib = Library::new(file).map_err(|e| e.to_string())?;
 
         let exported_macros = {
-            // data already implies reference
             let macros: libloading::Symbol<&&[ProcMacro]> = unsafe { lib.get(symbol_name.as_bytes()) }
                 .map_err(|e| e.to_string())?;
 
@@ -199,44 +198,51 @@ impl Expander {
 
     pub fn expand(
         &self,
-        code: &str,
-        macro_to_expand: &str,
+        macro_name: &str,
+        macro_body: &str,
+        attributes: Option<&String>,
     ) -> Result<String, proc_macro::bridge::PanicMessage> {
-        let token_stream =
-            parse_string(code).expect(&format!("Error while parsing this code: '{}'", code));
+        let parsed_body = parse_string(macro_body).expect(
+            &format!("Error while parsing this code: '{}'", macro_body)
+        );
+
+        let parsed_attributes = attributes.map_or(proc_macro2::TokenStream::new(), |attr| {
+            parse_string(attr).expect(
+                &format!("Error while parsing this code: '{}'", attr)
+            )
+        });
 
         for lib in &self.libs {
             for proc_macro in &lib.exported_macros {
                 match proc_macro {
                     ProcMacro::CustomDerive {
                         trait_name, client, ..
-                    } if *trait_name == macro_to_expand => {
+                    } if *trait_name == macro_name => {
                         let res = client.run(
                             &EXEC_STRATEGY,
                             rustc_server::Rustc::default(),
-                            token_stream,
+                            parsed_body,
                         );
 
                         return res.map(|token_stream| token_stream.to_string());
                     }
 
-                    ProcMacro::Bang { name, client } if *name == macro_to_expand => {
+                    ProcMacro::Bang { name, client } if *name == macro_name => {
                         let res = client.run(
                             &EXEC_STRATEGY,
                             rustc_server::Rustc::default(),
-                            token_stream,
+                            parsed_body,
                         );
 
                         return res.map(|token_stream| token_stream.to_string());
                     }
 
-                    ProcMacro::Attr { name, client } if *name == macro_to_expand => {
-                        // fixme attr macro needs two inputs
+                    ProcMacro::Attr { name, client } if *name == macro_name => {
                         let res = client.run(
                             &EXEC_STRATEGY,
                             rustc_server::Rustc::default(),
-                            proc_macro2::TokenStream::new(),
-                            token_stream,
+                            parsed_attributes,
+                            parsed_body,
                         );
 
                         return res.map(|token_stream| token_stream.to_string());
@@ -260,7 +266,7 @@ pub fn expand_task(task: &ExpansionTask) -> ExpansionResult {
         &format!("Cannot expand with provided libraries: ${:?}", &task.libs)
     );
 
-    let result = match expander.expand(&task.macro_body, &task.macro_name) {
+    let result = match expander.expand(&task.macro_name, &task.macro_body, task.attributes.as_ref()) {
         Ok(expansion) => ExpansionResult::Success { expansion },
 
         Err(msg) => {
