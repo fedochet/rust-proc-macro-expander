@@ -99,18 +99,20 @@ fn find_registrar_symbol(file: &Path) -> Option<String> {
 /// [here](https://github.com/fedochet/rust-proc-macro-panic-inside-panic-expample/issues/1)
 ///
 /// It seems that on Windows that behaviour is default, so we do nothing in that case.
+#[cfg(windows)]
 fn load_library(file: &Path) -> Result<Library, std::io::Error> {
-    if cfg!(target_os = "windows") {
-        Library::new(file)
-    } else {
-        use std::os::raw::c_int;
-        use libloading::os::unix::Library as UnixLibrary;
+    Library::new(file)
+}
 
-        const RTLD_NOW: c_int = 0x00002;
-        const RTLD_DEEPBIND: c_int = 0x00008;
+#[cfg(unix)]
+fn load_library(file: &Path) -> Result<Library, std::io::Error> {
+    use std::os::raw::c_int;
+    use libloading::os::unix::Library as UnixLibrary;
 
-        UnixLibrary::open(Some(file), RTLD_NOW | RTLD_DEEPBIND).map(|lib| lib.into())
-    }
+    const RTLD_NOW: c_int = 0x00002;
+    const RTLD_DEEPBIND: c_int = 0x00008;
+
+    UnixLibrary::open(Some(file), RTLD_NOW | RTLD_DEEPBIND).map(|lib| lib.into())
 }
 
 struct ProcMacroLibraryLibloading {
