@@ -6,9 +6,7 @@ os:
 - windows
 language: rust
 rust:
-- nightly-2019-04-01
-before_install:
-- rustup install stable
+- nightly
 deploy:
   provider: releases
   api_key:

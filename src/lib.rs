@@ -89,6 +89,30 @@ fn find_registrar_symbol(file: &Path) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Loads dynamic library in platform dependent manner.
+///
+/// For unix, you have to use RTLD_DEEPBIND flag to escape problems described
+/// [here](https://github.com/fedochet/rust-proc-macro-panic-inside-panic-expample)
+/// and [here](https://github.com/rust-lang/rust/issues/60593).
+///
+/// Usage of RTLD_DEEPBIND is suggested by @edwin0cheng
+/// [here](https://github.com/fedochet/rust-proc-macro-panic-inside-panic-expample/issues/1)
+///
+/// It seems that on Windows that behaviour is default, so we do nothing in that case.
+fn load_library(file: &Path) -> Result<Library, std::io::Error> {
+    if cfg!(target_os = "windows") {
+        Library::new(file)
+    } else {
+        use std::os::raw::c_int;
+        use libloading::os::unix::Library as UnixLibrary;
+
+        const RTLD_NOW: c_int = 0x00002;
+        const RTLD_DEEPBIND: c_int = 0x00008;
+
+        UnixLibrary::open(Some(file), RTLD_NOW | RTLD_DEEPBIND).map(|lib| lib.into())
+    }
+}
+
 struct ProcMacroLibraryLibloading {
     lib: Library,
     exported_macros: Vec<ProcMacro>,
@@ -99,7 +123,7 @@ impl ProcMacroLibraryLibloading {
         let symbol_name = find_registrar_symbol(file)
             .ok_or(format!("Cannot find registrar symbol in file {:?}", file))?;
 
-        let lib = Library::new(file).map_err(|e| e.to_string())?;
+        let lib = load_library(file).map_err(|e| e.to_string())?;
 
         let exported_macros = {
             let macros: libloading::Symbol<&&[ProcMacro]> = unsafe { lib.get(symbol_name.as_bytes()) }

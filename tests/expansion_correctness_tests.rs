@@ -116,7 +116,7 @@ static DYLIB_NAME_PREFIX: &str = "";
 fn compile_proc_macro(dir: &Path, proc_macro_name: &str) -> io::Result<PathBuf> {
     Command::new("cargo")
         .current_dir(dir)
-        .arg("+stable")
+        .arg("+nightly")
         .arg("build")
         .arg("-p").arg(proc_macro_name)
         .status()?;
