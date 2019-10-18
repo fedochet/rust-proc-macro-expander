@@ -677,6 +677,10 @@ impl server::Span for Rustc {
 
         MySpan(self.span_interner.intern(&MySpanData(resolved_at)))
     }
+
+    fn mixed_site(&mut self) -> Self::Span {
+        unimplemented!("Span::mixed_state is not yet implemented in proc_macro2")
+    }
 }
 
 impl server::MultiSpan for Rustc {
